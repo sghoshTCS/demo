@@ -1,0 +1,68 @@
+[BEGIN]
+  ObjTp=FSgntr
+  Sgntr=ArchiveManifest
+  RelVrs=4.2000.00
+  IsProgram=1
+  TopLevelProgram=KHSC-Research Room 228_v3.0.0.smw
+[END]
+[BEGIN]
+  ObjTp=ArchiveItem
+  File=KHSC-Research Room 228_v3.0.0.smw
+  Scope=1
+[END]
+[BEGIN]
+  ObjTp=ArchiveItem
+  File=KHSC-Research Room 228_v3.0.0.sig
+  Scope=1
+[END]
+[BEGIN]
+  ObjTp=ArchiveItem
+  File=KHSC-Research Room 228_v3.0.0.lpz
+  Scope=1
+[END]
+[BEGIN]
+  ObjTp=ArchiveItem
+  File=KHSC-Research Room 228_v3.0.0.smft
+  Scope=1
+[END]
+[BEGIN]
+  ObjTp=ArchiveItem
+  File=KHSC-Research Room 228_v3.0.0.lpz.hash
+  Scope=1
+[END]
+[BEGIN]
+  ObjTp=ArchiveItem
+  File=Samsung LCD Screen DWR v5.00.ush
+  Scope=1
+[END]
+[BEGIN]
+  ObjTp=ArchiveItem
+  File=Cynap Main Client.umc
+  Scope=1
+[END]
+[BEGIN]
+  ObjTp=ArchiveItem
+  File=Cynap_Main_Client.ush
+  Scope=1
+[END]
+[BEGIN]
+  ObjTp=ArchiveItem
+  File=CynapBase.clz
+  Scope=1
+  Module=Cynap Main Client
+[END]
+[BEGIN]
+  ObjTp=ArchiveItem
+  File=Cynap Windows Client.umc
+  Scope=1
+[END]
+[BEGIN]
+  ObjTp=ArchiveItem
+  File=Cynap_Windows_Client.ush
+  Scope=1
+[END]
+[BEGIN]
+  ObjTp=ArchiveItem
+  File=Cynap_Audio_Client.ush
+  Scope=1
+[END]

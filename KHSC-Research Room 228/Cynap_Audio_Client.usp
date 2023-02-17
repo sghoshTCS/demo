@@ -1,0 +1,429 @@
+/*******************************************************************************************
+
+	WolfVision GmbH
+	Oberes Ried 14, 6833 Klaus
+	Phone: +43-(0)5523-52250
+	Email: wolfvision@wolfvision.com
+	http://www.wolfvision.com
+
+	Module Name	: Cynap_Client
+	Comments	:
+	
+	Version	Date(dd/mm/yy)	Remarks 
+	------------------------------------------------------------------------------
+	3.00	07/06/19		Initial Public Release		  
+
+	Notes:
+	This version only works with 3-series.
+
+*******************************************************************************************/	
+
+/*******************************************************************************************
+  Compiler Directives
+*******************************************************************************************/
+#SYMBOL_NAME "Cynap Audio Client"
+#HINT "Version 3.00.0"
+#HELP_PDF_FILE "Module documentation.pdf"
+
+#DEFAULT_VOLATILE
+#ENABLE_STACK_CHECKING
+#ENABLE_TRACE
+#PRINT_TO_TRACE
+#ENCODING_ASCII
+
+#USER_SIMPLSHARP_LIBRARY "CynapBase"
+
+#DEFINE_CONSTANT	FALSE	0x00
+#DEFINE_CONSTANT	TRUE	0x01
+
+//#DEFINE_CONSTANT	DEBUG						1 							// Debug information for general functions/
+//#DEFINE_CONSTANT	DEBUG_PROGRAM				1 							// Debug information for general program data
+//#DEFINE_CONSTANT	DEBUG_RESPONSE				1							// Shows generic response parsing message
+//#DEFINE_CONSTANT	DEBUG_TRANSMISSION			1							// Shows generic debug messages for transmitting data
+//#DEFINE_CONSTANT	DEBUG_CRITICAL				1							// Critical error or notices
+//#DEFINE_CONSTANT	DEBUG_ERROR					1							// Shows error debug messages
+//#DEFINE_CONSTANT	ERRORLOG					1
+
+#DEFINE_CONSTANT	VERSION_MAJOR				3
+#DEFINE_CONSTANT	VERSION_MINOR				00
+#DEFINE_CONSTANT	VERSION_BUG					00
+
+#HELP_BEGIN
+	WolfVision GmbH
+	Oberes Ried 14, 6833 Klaus
+	Phone: +43-(0)5523-52250
+	Email: wolfvision@wolfvision.com
+	http://www.wolfvision.com
+
+	Please use Cynap firmware Version 1.30a or newer
+
+#HELP_END
+
+/*******************************************************************************************
+  DIGITAL, ANALOG and SERIAL INPUTS and OUTPUTS
+*******************************************************************************************/
+DIGITAL_INPUT _SKIP_, _SKIP_;
+DIGITAL_INPUT Subscribe, Unsubscribe;
+ 
+ANALOG_INPUT Master_Volume_In;
+DIGITAL_INPUT _SKIP_, Master_Mute_On, Master_Mute_Off, Master_Mute_Toggle;
+DIGITAL_INPUT _SKIP_, Mic_Mute_On, Mic_Mute_Off, Mic_Mute_Toggle, _SKIP_, _SKIP_, _SKIP_;
+
+
+
+DIGITAL_OUTPUT _SKIP_, _SKIP_;
+DIGITAL_OUTPUT Audio_Enabled_Fb, Audio_Disabled_Fb;
+DIGITAL_OUTPUT _SKIP_, Master_Mute_On_Fb, Master_Mute_Off_Fb,  _SKIP_;
+DIGITAL_OUTPUT _SKIP_, Mic_Mute_On_Fb, Mic_Mute_Off_Fb, _SKIP_;
+DIGITAL_OUTPUT _SKIP_, _SKIP_;
+
+ANALOG_OUTPUT _SKIP_, Master_Volume_Out;
+ANALOG_OUTPUT Mic_Status_Fb;
+
+
+                         
+
+/*******************************************************************************************
+  Global Variables
+*******************************************************************************************/
+INTEGER gnMasterVolume;														//Variable to keep track of the volume status	
+INTEGER gnMasterMuteStatus;													//Variable to keep track of the master mute status
+INTEGER gnMicMuteStatus;													//Variable to keep track of the mic mute status
+INTEGER gnMicStatus;														//Variable to keep track of the mic state
+
+/*******************************************************************************************
+  Parameters
+*******************************************************************************************/
+INTEGER_PARAMETER ID;
+
+/*******************************************************************************************
+  Parameter Properties
+*******************************************************************************************/
+#BEGIN_PARAMETER_PROPERTIES ID
+   propValidUnits = unitDecimal; // unitString or unitDecimal|unitHex|unitPercent|unitCharacter|unitTime|unitTicks;
+   // propDefaultUnit = // unitString, unitDecimal, unitHex, unitPercent, unitCharacter, unitTime or unitTicks;
+   // propBounds = lower_bound , upper_bound;
+   propDefaultValue = 0d;  // or, propDefaultValue = "";
+   // propList = // { "value" , "label" } , { "value" , "label" } , ... ;
+   // propShortDescription = "status_bar_hint_text";
+   // #BEGIN_PROP_FULL_DESCRIPTION  line_1...  line_2...  line_n  #END_PROP_FULL_DESCRIPTION
+   // #BEGIN_PROP_NOTES line_1...  line_2...  line_n  #END_PROP_NOTES
+#END_PARAMETER_PROPERTIES
+
+/*******************************************************************************************
+  Simpl# references
+*******************************************************************************************/
+Audio Cynapaudio;
+
+/*******************************************************************************************
+  Functions
+*******************************************************************************************/
+/********************************************************************************
+ Function : Init
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : The purpose of this function is to register the eventhandlers between simpl# and simpl+
+ Notes    : N/A
+ ********************************************************************************/
+function Init()
+{
+   	#IF_DEFINED DEBUG
+		print("[Init]\n");
+	#ENDIF
+	
+	print("Cynap Client ver. %.2u.%.2u.%.2u. Wolfvision GmbH.\n", VERSION_MAJOR, VERSION_MINOR, VERSION_BUG );
+
+	RegisterEvent (Cynapaudio, EventMasterVolumeUpdate, CYNAP_MASTERVOLUME_UPDATE );
+	RegisterEvent (Cynapaudio, EventMasterMuteStatusUpdate, CYNAP_MASTERMUTESTATUS_UPDATE );
+	RegisterEvent (Cynapaudio, EventMicStatusUpdate, CYNAP_MICSTATUS_UPDATE );
+	RegisterEvent (Cynapaudio, EventMicMuteStatusUpdate, CYNAP_MICMUTESTATUS_UPDATE );}
+                                                          
+
+/*******************************************************************************************
+  Event Handlers
+*******************************************************************************************/
+/********************************************************************************
+ EventHandler : CYNAP_MASTERVOLUME_UPDATE
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : Master_Volume out
+ Globals  : gnRecordingState
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : The purpose of this eventhandler is to sync data from the simpl# and simpl+ 
+ Notes    : N/A
+ ********************************************************************************/
+eventhandler CYNAP_MASTERVOLUME_UPDATE(Audio sender, EventArgs e)
+{
+	#if_defined DEBUG
+		print("[CYNAP_MASTERVOLUME_UPDATE]\n");
+	#ENDIF
+
+	if( sender = Cynapaudio )
+	{
+		gnMasterVolume = Cynapaudio.gnMasterVolume;
+		Master_Volume_Out = gnMasterVolume;
+
+	}
+	else
+	{
+		#if_defined DEBUG_CRITICAL
+			print("[CYNAP_MASTERVOLUME_UPDATE Cynap] Class issue\n" );
+		#ENDIF
+	}
+}
+
+/********************************************************************************
+ EventHandler : CYNAP_MASTERMUTESTATUS_UPDATE Cynap
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : Master_Mute_On_Fb
+			Master_Mute_Off_Fb
+ Globals  : gnMasterMuteStatus
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : The purpose of this eventhandler is to sync data from the simpl# and simpl+ 
+ Notes    : N/A
+ ********************************************************************************/
+eventhandler CYNAP_MASTERMUTESTATUS_UPDATE(Audio sender, EventArgs e)
+{
+	#if_defined DEBUG
+		print("[CYNAP_MASTERMUTESTATUS_UPDATE]\n");
+	#ENDIF
+
+	if( sender = Cynapaudio )
+	{
+		gnMasterMuteStatus = Cynapaudio.gnMasterMuteStatus;
+
+		CSWITCH(gnMasterMuteStatus)
+		{
+		   	CASE(0): 
+			{
+				Master_Mute_Off_Fb	= TRUE;
+				Master_Mute_On_Fb = FALSE;	
+				BREAK;
+			}
+		   	CASE(1): 
+			{
+				Master_Mute_Off_Fb	= FALSE;
+				Master_Mute_On_Fb= TRUE;
+				BREAK;
+			}
+
+		}
+	}
+	else
+	{
+		#if_defined DEBUG_CRITICAL
+			print("[CYNAP_MASTERMUTESTATUS_UPDATE Cynap] Class issue\n" );
+		#ENDIF
+	}
+}
+/********************************************************************************
+ EventHandler : CYNAP_MICSTATUS_UPDATE Cynap
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : Mic_Mute_Enabled_Fb
+			Mic_Mute_Disabled_Fb
+ Globals  : gnMicStatus
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : The purpose of this eventhandler is to sync data from the simpl# and simpl+ 
+ Notes    : N/A
+ ********************************************************************************/
+eventhandler CYNAP_MICSTATUS_UPDATE(Audio sender, EventArgs e)
+{
+	#if_defined DEBUG
+		print("[CYNAP_MICSTATUS_UPDATE]\n");
+	#ENDIF
+
+	if( sender = Cynapaudio )
+	{
+		gnMicStatus = Cynapaudio.gnMicStatus;
+        Mic_Status_Fb=gnMicStatus;				//This is used for graphics to help the mic icon change the color
+	}
+	else
+	{
+		#if_defined DEBUG_CRITICAL
+			print("[CYNAP_MICSTATUS_UPDATE Cynap] Class issue\n" );
+		#ENDIF
+	}
+}
+/********************************************************************************
+ EventHandler : CYNAP_MICMUTESTATUS_UPDATE Cynap
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : Mic_Mute_On_Fb
+			Mic_Mute_Off_Fb
+ Globals  : gnMicMuteStatus
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : The purpose of this eventhandler is to sync data from the simpl# and simpl+ 
+ Notes    : N/A
+ ********************************************************************************/
+eventhandler CYNAP_MICMUTESTATUS_UPDATE(Audio sender, EventArgs e)
+{
+	#if_defined DEBUG
+		print("[CYNAP_MICMUTESTATUS_UPDATE]\n");
+	#ENDIF
+
+	if( sender = Cynapaudio )
+	{
+		gnMicMuteStatus = Cynapaudio.gnMicMuteStatus;
+
+		CSWITCH(gnMicMuteStatus)
+		{
+		   	CASE(0): 
+			{
+				Mic_Mute_Off_Fb	= TRUE;
+				Mic_Mute_On_Fb = FALSE;	
+				BREAK;
+			}
+		   	CASE(1): 
+			{
+				Mic_Mute_Off_Fb	= FALSE;
+				Mic_Mute_On_Fb= TRUE;
+				BREAK;
+			}
+
+		}
+	}
+	else
+	{
+		#if_defined DEBUG_CRITICAL
+			print("[CYNAP_MICMUTESTATUS_UPDATE Cynap] Class issue\n" );
+		#ENDIF
+	}
+}
+/*******************************************************************************************
+  Push/Release/Change events
+*******************************************************************************************/
+PUSH Subscribe 
+{
+	Cynapaudio.Subscribe();
+	Audio_Enabled_Fb = 1;
+	Audio_Disabled_Fb = 0;
+}
+PUSH Unsubscribe 
+{
+	Cynapaudio.Unsubscribe();
+	Audio_Enabled_Fb = 0;
+	Audio_Disabled_Fb = 1;
+}
+
+
+/********************************************************************************
+ Function : PUSH Master_Mute_On
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will turn the Master mute on
+ Notes    : N/A
+ ********************************************************************************/
+Push Master_Mute_On  {Cynapaudio.setMasterMuteOn();}
+/********************************************************************************
+ Function : PUSH Master_Mute_Off
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will turn the Master mute off
+ Notes    : N/A
+ ********************************************************************************/
+Push Master_Mute_Off  {Cynapaudio.setMasterMuteOff();}
+/********************************************************************************
+ Function : PUSH Master_Mute_Toggle
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will toggle Master mute
+ Notes    : N/A
+ ********************************************************************************/
+Push Master_Mute_Toggle  {Cynapaudio.setMasterMuteToggle();}
+/********************************************************************************
+ Function : PUSH Mic_Mute_On
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will turn the Master mute on
+ Notes    : N/A
+ ********************************************************************************/
+Push Mic_Mute_On  {Cynapaudio.setMicMuteOn();}
+/********************************************************************************
+ Function : PUSH Mic_Mute_Off
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will turn the Master mute off
+ Notes    : N/A
+ ********************************************************************************/
+Push Mic_Mute_Off  {Cynapaudio.setMicMuteOff();}
+/********************************************************************************
+ Function : PUSH Mic_Mute_Toggle
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will toggle Master mute
+ Notes    : N/A
+ ********************************************************************************/
+Push Mic_Mute_Toggle  {Cynapaudio.setMicMuteToggle();}
+/********************************************************************************
+ Function : CHANGE Master_Volume_In
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will change the master volume level 
+ Notes    : N/A
+ ********************************************************************************/
+Change Master_Volume_In
+{
+	Cynapaudio.setMasterVolume(Master_Volume_In);
+	Master_Volume_Out = Master_Volume_In;
+}
+/********************************************************************************
+  Main()
+*******************************************************************************************/
+
+/********************************************************************************
+ Function : Main
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : Init()
+			Init() within simpl#
+ Return   : N/A
+ Purpose  : This function will only run once and initialze this module, and its simpl# counterpart. 
+ Notes    : N/A
+ ********************************************************************************/
+Function Main()
+{
+    WaitForInitializationComplete();
+	Cynapaudio.Init(ID);
+	Init();
+}
+

@@ -1,0 +1,1199 @@
+/*******************************************************************************************
+
+	WolfVision GmbH
+	Oberes Ried 14, 6833 Klaus
+	Phone: +43-(0)5523-52250
+	Email: wolfvision@wolfvision.com
+	http://www.wolfvision.com
+
+	Module Name	: Cynap_Client
+	Comments	:
+	
+	Version	Date(dd/mm/yy)	Remarks 
+	------------------------------------------------------------------------------
+	3.00	07/06/19		internal release		  
+	3.01	07/06/19		Updates for new function; PiP, USB/INTERNAL settings		  
+	3.01.01	11/11/19		Making a secure/unsecure module for testing issues	
+	3.02.00 26/02/20 		Fixes for connection method and adding zoom functions
+	3.02.01 20/03/20 		Added new routine for disconnecting	  
+	3.02.02 07/07/20 		Internal release
+	3.02.03 02/09/20 		Added error handeling when disconnecting
+	3.03.00 03/10/20 		Adding new check for Office 365 Local account
+	3.04.00 04/12/20		resync version
+	3.05.00	05/03/21		Removed logic for Fimrware Popup
+
+	Notes:
+	This version only works with 3-series.
+
+*******************************************************************************************/	
+
+/*******************************************************************************************
+  Compiler Directives
+*******************************************************************************************/
+#SYMBOL_NAME "Cynap Main Client"
+#HINT "Version 3.05.00"
+#HELP_PDF_FILE "Module documentation.pdf"
+
+#DEFAULT_VOLATILE
+#ENABLE_STACK_CHECKING
+#ENABLE_TRACE
+#PRINT_TO_TRACE
+#ENCODING_ASCII
+
+#USER_SIMPLSHARP_LIBRARY "CynapBase"
+
+#DEFINE_CONSTANT	FALSE	0x00
+#DEFINE_CONSTANT	TRUE	0x01
+
+//#DEFINE_CONSTANT	DEBUG						1 							// Debug information for general functions
+//#DEFINE_CONSTANT	DEBUG_PROGRAM				1 							// Debug information for general program data
+//#DEFINE_CONSTANT	DEBUG_RESPONSE				1							// Shows generic response parsing message
+//#DEFINE_CONSTANT	DEBUG_CRITICAL				1							// Critical error or notices
+//#DEFINE_CONSTANT	DEBUG_TRANSMISSION			1							// Shows generic debug messages for transmitting data
+//#DEFINE_CONSTANT	DEBUG_ERROR					1							// Shows error debug messages
+//#DEFINE_CONSTANT	ERRORLOG					1
+
+#DEFINE_CONSTANT	VERSION_MAJOR				03
+#DEFINE_CONSTANT	VERSION_MINOR				05
+#DEFINE_CONSTANT	VERSION_BUG					00
+
+#DEFINE_CONSTANT	ETH_STATUS_NO_CONNECT					0				//Status constants for ethernet errors
+#DEFINE_CONSTANT	ETH_STATUS_WAITING	 					1
+#DEFINE_CONSTANT	ETH_STATUS_CONNECTED 					2
+#DEFINE_CONSTANT	ETH_STATUS_CONNECTION_FAILED 			3
+#DEFINE_CONSTANT	ETH_STATUS_CONNECTION_BROKEN_REMOTELY 	4  
+#DEFINE_CONSTANT	ETH_STATUS_CONNECTION_BROKEN_LOCALLY 	5
+#DEFINE_CONSTANT	ETH_STATUS_DNS_LOOKUP					6	
+#DEFINE_CONSTANT	ETH_STATUS_DNS_LOOKUP_FAILED			7
+#DEFINE_CONSTANT	ETH_STATUS_DNS_LOOKUP_RESOLVED			8
+#DEFINE_CONSTANT	ETH_STATUS_CABLE_UNPLUGGED				9
+                                        		
+#DEFINE_CONSTANT	Brodcast_IP					"255.255.255.255"			//Broadcast IP address
+#DEFINE_CONSTANT	UDP_Port					50913						// The default cynap communication port for UDP 
+                                                           
+#DEFINE_CONSTANT	MAX_PACKET_SIZE				1024                                                                   
+#DEFINE_CONSTANT	MAX_DATA_SIZE				64                                                                   
+
+#HELP_BEGIN
+	WolfVision GmbH
+	Oberes Ried 14, 6833 Klaus
+	Phone: +43-(0)5523-52250
+	Email: wolfvision@wolfvision.com
+	http://www.wolfvision.com
+
+	Please use Cynap firmware Version 1.38
+
+#HELP_END
+
+
+/*******************************************************************************************
+  DIGITAL, ANALOG and SERIAL INPUTS and OUTPUTS
+*******************************************************************************************/
+//Inputs
+DIGITAL_INPUT _SKIP_, _SKIP_, _SKIP_, _SKIP_, _SKIP_, _SKIP_;
+DIGITAL_INPUT _SKIP_, Power_On, Power_Off, Power_Toggle;
+DIGITAL_INPUT _SKIP_, User_Settings_Poll_Type, Load_User_Settings, Cancel_User_Settings, Save_User_Settings;
+DIGITAL_INPUT _SKIP_, _SKIP_;
+
+DIGITAL_INPUT _SKIP_, Close_All_Windows;
+DIGITAL_INPUT _SKIP_, Take_Snapshot;
+
+DIGITAL_INPUT _SKIP_, Office365_Skype_Use_Local_Account, Office365_Skype_Dont_Use_Local_Account, Office365_Skype_Toggle_Local_Account;
+DIGITAL_INPUT _SKIP_, Office365_Use_Local_Account, Office365_Dont_Use_Local_Account, Office365_Toggle_Local_Account;
+DIGITAL_INPUT _SKIP_, Show_Splash_Screen;
+DIGITAL_INPUT _SKIP_, PiP_On, PiP_Off, PiP_Toggle;
+                                         
+STRING_INPUT _SKIP_, SendCommand[ MAX_PACKET_SIZE ]; 
+ANALOG_INPUT _SKIP_, Connection;                               
+
+
+                               
+
+
+//Outputs
+DIGITAL_OUTPUT _SKIP_, _SKIP_, _SKIP_, _SKIP_, Link_Established_Fb, Valid_Login;
+
+DIGITAL_OUTPUT _SKIP_, UserData_Show_Settings_Fb, _SKIP_, UserData_Dropbox_Present, UserData_GoogleDrive_Present, UserData_Box_Present, UserData_Jianguoyun_Present, UserData_OneDrive_Present, UserData_WebDAV_Present, UserData_Office365_Present, UserData_Bookmarks_Present;
+DIGITAL_OUTPUT _SKIP_, _SKIP_;
+DIGITAL_OUTPUT _SKIP_, Office365_Skype_Show_Local_Account_Setting, Office365_Skype_Use_Local_Account_Fb, Office365_Skype_Dont_Use_Local_Account_Fb;
+DIGITAL_OUTPUT _SKIP_, Office365_Show_Local_Account_Setting, Office365_Use_Local_Account_Fb, Office365_Dont_Use_Local_Account_Fb;
+
+DIGITAL_OUTPUT _SKIP_, Show_PIN_Code, Show_PIN_BYOD;
+
+DIGITAL_OUTPUT _SKIP_, Power_On_Fb, Power_Off_Fb, _SKIP_;
+DIGITAL_OUTPUT _SKIP_, Splash_Screen_Enabled;
+DIGITAL_OUTPUT _SKIP_, PiP_Enabled, PiP_On_Fb, PiP_Off_Fb;
+
+                                                                                                      			
+ANALOG_OUTPUT  _SKIP_, Link_Status;
+STRING_OUTPUT  		   Error, Debug_out; 
+                                                 
+STRING_OUTPUT _SKIP_, Box_Name;
+STRING_OUTPUT _SKIP_, PIN_Code, PIN_BYOD;
+  
+
+/*******************************************************************************************
+  SOCKETS
+*******************************************************************************************/
+UDP_SOCKET	UDP_Broadcast[256];  
+
+/*******************************************************************************************
+  Parameters
+*******************************************************************************************/
+INTEGER_PARAMETER Group_ID;
+
+STRING_PARAMETER Server_IP[256], Cynap_RMS_Password[64], MAC_Address[64];
+
+/*******************************************************************************************
+  Parameter Properties
+*******************************************************************************************/
+#BEGIN_PARAMETER_PROPERTIES Group_ID
+   propValidUnits = unitDecimal;// or unitDecimal|unitHex|unitPercent|unitCharacter|unitTime|unitTicks;
+   propDefaultUnit = unitDecimal;//, unitDecimal, unitHex, unitPercent, unitCharacter, unitTime or unitTicks;
+   propDefaultValue = 0d;  // or, propDefaultValue = "";
+   propShortDescription = "ID of the group of modules";
+#END_PARAMETER_PROPERTIES
+
+#BEGIN_PARAMETER_PROPERTIES Server_IP
+   propValidUnits = unitString;// or unitDecimal|unitHex|unitPercent|unitCharacter|unitTime|unitTicks;
+   propDefaultUnit = unitString;//, unitDecimal, unitHex, unitPercent, unitCharacter, unitTime or unitTicks;
+   propShortDescription = "IP or DNS-name of the Cynap";
+#END_PARAMETER_PROPERTIES
+
+#BEGIN_PARAMETER_PROPERTIES Cynap_RMS_Password
+   propValidUnits = unitString;// or unitDecimal|unitHex|unitPercent|unitCharacter|unitTime|unitTicks;
+   propDefaultUnit = unitString;//, unitDecimal, unitHex, unitPercent, unitCharacter, unitTime or unitTicks;
+   propDefaultValue = "Password";  // or, propDefaultValue = "";
+   propShortDescription = "RMS Password for Cynap Unit.";
+#END_PARAMETER_PROPERTIES
+
+#BEGIN_PARAMETER_PROPERTIES MAC_Address
+   propValidUnits = unitString;// or unitDecimal|unitHex|unitPercent|unitCharacter|unitTime|unitTicks;
+   propDefaultUnit = unitString;//, unitDecimal, unitHex, unitPercent, unitCharacter, unitTime or unitTicks;
+   propDefaultValue = "\x00\x00\x00\x00\x00\x00";  // or, propDefaultValue = "";
+   propShortDescription = "MAC Address for Cynap Unit in Crestrons hex format, no spaces, no dashes, no colons.";
+#END_PARAMETER_PROPERTIES
+
+
+/*******************************************************************************************
+  Structure Definitions
+*******************************************************************************************/
+
+/*******************************************************************************************
+  Global Variables
+*******************************************************************************************/
+INTEGER	gnProcessingBuffer;													//Variable to keep track of if the buffer is currently being processed				
+INTEGER gnSending;															//Semiphore for sending data to simpl#
+       
+INTEGER gnHeartbeatCounter;													//Value to count the heartbeat requests
+
+INTEGER gnEthernetStatus;													//Variable to keep track of the current ethernet status
+
+INTEGER gnLoginValid;														//Variable to keep track of if we have a valid login or not
+
+STRING gsBoxname[MAX_DATA_SIZE];
+
+STRING gsPINcode[8];
+STRING gsPINBYOD[8];
+
+INTEGER gnPowerStatus;														//Variable to keep track of the current power state
+ 
+INTEGER gnUserDataNotLoaded;												//Variable to keep track of user data that is present, but not loaded
+INTEGER gnUserDataStatus;													//Variable to keep track of user data status
+
+INTEGER gnUserDataDropbox;													//Variable to keep track of dropbox data status
+INTEGER gnUserDataGoogleDrive;												//Variable to keep track of googledrive data status
+INTEGER gnUserDataBox;														//Variable to keep track of box data status
+INTEGER gnUserDataJianguoyun;												//Variable to keep track of Jianguoyun data status
+INTEGER gnUserDataOneDrive;													//Variable to keep track of OneDrive data status
+INTEGER gnUserDataWebDAV;													//Variable to keep track of WebDAV data status
+INTEGER gnUserDataBookmarks;												//Variable to keep track of Bookmark data status
+INTEGER gnUserDataOffice365;												//Variable to keep track of Office data status
+INTEGER gnUserDataOffice365Local;												//Variable to keep track of Office data status
+
+INTEGER gnUserDataDropboxINT;												//Variable to keep track of dropbox data status
+INTEGER gnUserDataGoogleDriveINT;											//Variable to keep track of googledrive data status
+INTEGER gnUserDataBoxINT;													//Variable to keep track of box data status
+INTEGER gnUserDataJianguoyunINT;											//Variable to keep track of Jianguoyun data status
+INTEGER gnUserDataOneDriveINT;												//Variable to keep track of OneDrive data status
+INTEGER gnUserDataWebDAVINT;												//Variable to keep track of WebDAV data status
+INTEGER gnUserDataBookmarksINT;												//Variable to keep track of Bookmark data status
+INTEGER gnUserDataOffice365INT;												//Variable to keep track of Office data status
+INTEGER gnUserDataOffice365LocalINT;												//Variable to keep track of Office data status
+
+INTEGER gnUserSettingLoad_Active;											//Variable to track if Show user settings is active
+INTEGER gnUserSettingSave_Active;											//Variable to track if Save user settings is active
+
+INTEGER gnUserSettingTypeINT;
+INTEGER gnUserDataCallBack;													//Variable to track if we were trying to connect to a cloud drive
+
+INTEGER gnSkypeLocalSettings;   
+INTEGER gnSkypeSettings; 
+INTEGER gnSkypeOffice365;
+
+INTEGER gnUserData_Office365_Account_Present;
+INTEGER gnOffice365Account;
+
+INTEGER gnSplashScreenStatus;
+
+/*******************************************************************************************
+  Simpl# references
+*******************************************************************************************/
+ProgramMain Cynap;																// Cynap SSL connection
+
+/*******************************************************************************************
+  Functions
+*******************************************************************************************/
+
+/********************************************************************************
+ Function : Init
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gsSourceText - Used to store the names of the sources in an array
+ Calls    : BuildTimeZoneIndex
+ Return   : N/A
+ Purpose  : The purpose of this is to initialize the sourceText Signal names
+			and report the version number of the module
+ Notes    : Text[1] and Text[2] are dynamic and get thier names from the Cynap
+ ********************************************************************************/
+
+function Init()
+{
+   	#IF_DEFINED DEBUG
+		print("[Init]\n");
+	#ENDIF
+	
+	// Registering Simpl# events
+	RegisterEvent (Cynap, CustomSocketStatus, CYNAP_SSL_SOCKETSTATUS );
+
+	RegisterEvent (Cynap, EventPowerUpdate, CYNAP_POWER_UPDATE );
+	RegisterEvent (Cynap, EventLoginUpdate, CYNAP_LOGIN_UPDATE );
+	RegisterEvent (Cynap, EventUserDataStatusUpdate, CYNAP_USERDATASTATUS_UPDATE );
+	RegisterEvent (Cynap, EventUserDataUpdate, CYNAP_USERDATA_UPDATE );
+	RegisterEvent (Cynap, EventBoxnameUpdate, CYNAP_BOXNAME_UPDATE );
+	RegisterEvent (Cynap, EventPINRoomUpdate, CYNAP_PINROOM_UPDATE );
+	RegisterEvent (Cynap, EventPINBYODUpdate, CYNAP_PINBYOD_UPDATE );
+	RegisterEvent (Cynap, EventSkypAccountsUpdate, CYNAP_SKYPEACCOUNTS_UPDATE );
+	RegisterEvent (Cynap, EventOffice365AccountsUpdate, CYNAP_OFFICE365ACCOUNTS_UPDATE );
+
+	RegisterEvent (Cynap, EventSplashScreenUpdate, CYNAP_SPLASHSCREEN_UPDATE );
+	RegisterEvent (Cynap, EventPIPEnabledUpdate, CYNAP_PIP_ENABLED_UPDATE );
+	RegisterEvent (Cynap, EventPIPFBUpdate, CYNAP_PIP_FB_UPDATE );
+
+	print("Cynap Main Client ver. %.2u.%.2u.%.2u. Wolfvision GmbH.\n", VERSION_MAJOR, VERSION_MINOR, VERSION_BUG );
+}
+
+/********************************************************************************
+ Function : ReConnectUDP
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : The purpose of this function is to re-enable the UDP socket
+ Notes    : 
+ ********************************************************************************/
+Function ReConnectUDP()																		//re-establish a connection if it doesnt work
+{
+	#IF_DEFINED DEBUG
+    	Print( "[ReConnectUDP]\n" );
+	#ENDIF
+
+	SocketUDP_disable(UDP_Broadcast);
+	SocketUDP_Enable(UDP_Broadcast, Brodcast_IP, UDP_Port);	
+}
+
+/********************************************************************************
+ Function : Send_WOL
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : The purpose of this function is to wake the cynap using the WOL Magic Packet
+ Notes    : 
+ ********************************************************************************/
+Function Send_WOL()																				//setup WOL packet and send it
+{
+    SIGNED_INTEGER siConnectStatus;
+    SIGNED_INTEGER siSendStatus;
+	STRING MagicPacket[256];   
+
+	#IF_DEFINED DEBUG
+    	Print( "[Send_WOL]\n" );
+	#ENDIF
+	#IF_DEFINED DEBUG_TRANSMISSION
+    	Print( "[Send_WOL] Sending WOL.\n" );
+	#ENDIF
+
+	//Make a magic packet by using \xFF 6times, then the MAC address 16 times
+	makestring(MagicPacket, "\xFF\xFF\xFF\xFF\xFF\xFF%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s", MAC_Address, MAC_Address, MAC_Address, MAC_Address, MAC_Address, MAC_Address, MAC_Address, MAC_Address, MAC_Address, MAC_Address, MAC_Address, MAC_Address, MAC_Address, MAC_Address, MAC_Address, MAC_Address);
+
+	siConnectStatus = SocketUDP_Enable(UDP_Broadcast, Brodcast_IP, UDP_Port);
+	
+	if(siConnectStatus = 0){siSendStatus = SocketSend(UDP_Broadcast, MagicPacket);}
+	else 
+  	{
+		#IF_DEFINED DEBUG_TRANSMISSION
+	    	Print( "[Send_WOL] Unable to establish a UDP connection\n" );
+		#ENDIF
+	}
+
+	if(siSendStatus >= 0)
+  	{
+		#IF_DEFINED DEBUG_TRANSMISSION
+	    	Print( "[Send_WOL] Successful transmission\n" );
+		#ENDIF
+	}
+	Else																				//If there is any error, report it
+	{
+   		#IF_DEFINED DEBUG_ERROR
+			cswitch(siSendStatus)
+			{
+  	           	Case (-1): {Print("[Send_WOL]%s on port %u is not a valid socket", Brodcast_IP, UDP_Port);break;}
+      	       	Case (-5): {Print("[Send_WOL]Could not establish a connection to %s on port %u", Brodcast_IP, UDP_Port);break;}
+          	   	default:   {Print("[Send_WOL]Unknown Error");break;}
+			}
+		#ENDIF
+	}     
+	SocketUDP_disable(UDP_Broadcast);
+}
+
+/********************************************************************************
+ Function : SendData
+ --------------------------------------------------------------------------------
+ Arguments: STRING sPacket - contains the processed package to be sent.
+ Output   : N/A
+ Globals  : N/A 
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : This purpose of this function is to add a command to the end of the queue
+ Notes    : N/A 
+ ********************************************************************************/
+FUNCTION SendData( STRING sPacket ){Cynap.addToEndOfQueue(sPacket);}
+/********************************************************************************
+ Function : SendDataNow
+ --------------------------------------------------------------------------------
+ Arguments: STRING sPacket - contains the processed package to be sent.
+ Output   : N/A
+ Globals  : N/A 
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : This purpose of this function is to add a command to the front of the queue
+ Notes    : N/A 
+ ********************************************************************************/
+FUNCTION SendDataNow( STRING sPacket ){Cynap.addToFrontOfQueue(sPacket);}
+ 
+/*******************************************************************************************
+  Event Handlers
+  Define PUSH, RELEASE, CHANGE, EVENT, SOCKETCONNECT, SOCKETDISCONNECT, SOCKETRECEIVE, SOCKETSTATUS
+*******************************************************************************************/
+
+/********************************************************************************
+ Function : SOCKETSTATUS Cynap
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : Link_Status
+			Link_Established_Fb
+ Globals  : gnEthernetStatus
+ Calls    : Disconnect
+ Return   : N/A
+ Purpose  : The purpose of this function is to observe the Connection state to the 
+			cynap and try to re-establish a connection if it is broken
+ Notes    : Uses a S# event class as a replacement for the original socket-function.
+ ********************************************************************************/
+eventhandler CYNAP_SSL_SOCKETSTATUS(ProgramMain sender, EventArgs e)
+{
+	#if_defined DEBUG
+		print("[CYNAP_SSL_SOCKETSTATUS]\n");
+	#ENDIF
+
+	if( sender = Cynap )
+	{
+		gnEthernetStatus = Cynap.SocketGetStatus;
+
+		#if_defined DEBUG_CRITICAL
+			print("[SOCKETSTATUS Cynap] gnEthernetStatus = %d\n", gnEthernetStatus );
+		#ENDIF
+			
+	    Link_Status = gnEthernetStatus;
+	
+		if(gnEthernetStatus = ETH_STATUS_CONNECTED ) Link_Established_Fb = TRUE;
+		else
+		{
+        	gnLoginValid 	= FALSE;
+			VALID_LOGIN = gnLoginValid;
+	        Link_Established_Fb = FALSE;
+		}
+	}
+	else
+	{
+		#if_defined DEBUG_CRITICAL
+			print("[SOCKETSTATUS Cynap] Class issue\n" );
+		#ENDIF
+	}
+}
+
+
+
+/********************************************************************************
+ Function : CYNAP_POWER_UPDATE Cynap
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnProcessingBuffer
+			 
+ Calls    : ProcessBuffer
+ Return   : N/A
+ Purpose  : The purpose of this section is to recieve data from the Cynap and call the ProcessBuffer if it is not running
+ Notes    : Uses a S# event class as a replacement for the original socket-function.
+ ********************************************************************************/
+eventhandler CYNAP_POWER_UPDATE(ProgramMain sender, EventArgs e)
+{
+	#if_defined DEBUG
+		print("[CYNAP_POWER_UPDATE]\n");
+	#ENDIF
+
+	if( sender = Cynap )
+	{
+
+		gnPowerStatus =  Cynap.gnPowerStatus; // Move the Simpl# data into Simpl+
+
+		#if_defined DEBUG
+			print("[CYNAP_POWER_UPDATE Cynap] gnPowerStatus: %d\n", gnPowerStatus );
+		#ENDIF
+
+		Power_On_Fb = gnPowerStatus;
+		Power_Off_Fb =! gnPowerStatus;
+	}
+	else
+	{
+		#if_defined DEBUG_RESPONSE
+			print("[CYNAP_POWER_UPDATE Cynap] Class issue\n" );
+		#ENDIF
+	}
+}
+/********************************************************************************
+ Function : CYNAP_LOGIN_UPDATE Cynap
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnProcessingBuffer
+			 
+ Calls    : ProcessBuffer
+ Return   : N/A
+ Purpose  : The purpose of this section is to recieve data from the Cynap and call the ProcessBuffer if it is not running
+ Notes    : Uses a S# event class as a replacement for the original socket-function.
+ ********************************************************************************/
+eventhandler CYNAP_LOGIN_UPDATE(ProgramMain sender, EventArgs e)
+{
+	#if_defined DEBUG
+		print("[CYNAP_LOGIN_UPDATE]\n");
+	#ENDIF
+
+	if( sender = Cynap )
+	{
+    	gnLoginValid = TRUE;
+		VALID_LOGIN = gnLoginValid;
+	}
+	else
+	{
+		#if_defined DEBUG_RESPONSE
+			print("[CYNAP_LOGIN_UPDATE Cynap] Class issue\n" );
+		#ENDIF
+	}
+}
+ 
+/********************************************************************************
+ Function : CYNAP_LOGIN_UPDATE Cynap
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnProcessingBuffer
+			 
+ Calls    : ProcessBuffer
+ Return   : N/A
+ Purpose  : The purpose of this section is to recieve data from the Cynap and call the ProcessBuffer if it is not running
+ Notes    : Uses a S# event class as a replacement for the original socket-function.
+ ********************************************************************************/
+eventhandler CYNAP_USERDATASTATUS_UPDATE(ProgramMain sender, EventArgs e)
+{
+	#if_defined DEBUG
+		print("[CYNAP_USERDATASTATUS_UPDATE]\n");
+	#ENDIF
+
+	if( sender = Cynap )
+	{
+	
+		gnUserDataStatus = Cynap.gnUserDataStatus; // Move the Simpl# data into Simpl+
+
+	    If(Cynap.gnvMeetingDisplayCalander = TRUE){UserData_Show_Settings_Fb = FALSE; gnUserSettingLoad_Active = FALSE; }
+		else
+		{
+			CSWITCH(gnUserDataStatus)
+			{
+            	Case(0):{UserData_Show_Settings_Fb = FALSE; gnUserSettingLoad_Active = FALSE; BREAK;}
+   	        	Case(1):
+				{
+					UserData_Show_Settings_Fb = TRUE; 
+					gnUserSettingLoad_Active = TRUE; 
+
+					UserData_Dropbox_Present = gnUserDataDropbox;
+					UserData_GoogleDrive_Present = gnUserDataGoogleDrive;
+					UserData_Box_Present = gnUserDataBox;
+					UserData_Jianguoyun_Present = gnUserDataJianguoyun;
+					UserData_OneDrive_Present = gnUserDataOneDrive;
+					UserData_WebDAV_Present = gnUserDataWebDAV;
+					UserData_Office365_Present = gnUserDataOffice365;
+					UserData_Bookmarks_Present = gnUserDataBookmarks;
+
+					If((gnUserDataOffice365 > 0) && (gnUserDataOffice365LocalINT > 0)){Office365_Show_Local_Account_Setting = TRUE;}
+					Else {Office365_Show_Local_Account_Setting = FALSE;}
+		
+					BREAK;
+				}
+       	    	Case(2):{UserData_Show_Settings_Fb = FALSE; gnUserSettingLoad_Active = FALSE; BREAK;}
+           		Case(3):
+				{
+					If(gnUserDataNotLoaded){/*do nothing*/ BREAK;}
+					else {UserData_Show_Settings_Fb = FALSE; gnUserSettingLoad_Active = FALSE; BREAK;}
+				}
+           		DEFAULT:{UserData_Show_Settings_Fb = FALSE; gnUserSettingLoad_Active = FALSE; BREAK;}
+			}
+		}     
+	}
+	else
+	{
+		#if_defined DEBUG_RESPONSE
+			print("[CYNAP_USERDATASTATUS_UPDATE Cynap] Class issue\n" );
+		#ENDIF
+	}
+}
+
+/********************************************************************************
+ Function : CYNAP_LOGIN_UPDATE Cynap
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnProcessingBuffer
+			 
+ Calls    : ProcessBuffer
+ Return   : N/A
+ Purpose  : The purpose of this section is to recieve data from the Cynap and call the ProcessBuffer if it is not running
+ Notes    : Uses a S# event class as a replacement for the original socket-function.
+ ********************************************************************************/
+eventhandler CYNAP_USERDATA_UPDATE(ProgramMain sender, EventArgs e)
+{
+	#if_defined DEBUG
+		print("[CYNAP_USERDATA_UPDATE]\n");
+	#ENDIF
+
+	if( sender = Cynap )
+	{
+		#if_defined DEBUG
+			print("[CYNAP_USERDATA_UPDATE]\n");
+		#ENDIF
+
+		gnUserDataDropbox = Cynap.gnUserDataDropbox;
+		gnUserDataGoogleDrive = Cynap.gnUserDataGoogleDrive;
+		gnUserDataBox = Cynap.gnUserDataBox;
+		gnUserDataJianguoyun = Cynap.gnUserDataJianguoyun;
+		gnUserDataOneDrive = Cynap.gnUserDataOneDrive;
+		gnUserDataWebDAV = Cynap.gnUserDataWebDAV;
+		gnUserDataOffice365 = Cynap.gnUserDataOffice365;
+		gnUserDataOffice365Local = Cynap.gnUserDataOffice365Local;
+		gnUserDataBookmarks = Cynap.gnUserDataBookmarks;
+
+		gnUserDataDropboxINT = Cynap.gnUserDataDropboxINT;
+		gnUserDataGoogleDriveINT = Cynap.gnUserDataGoogleDriveINT;
+		gnUserDataBoxINT = Cynap.gnUserDataBoxINT;
+		gnUserDataJianguoyunINT = Cynap.gnUserDataJianguoyunINT;
+		gnUserDataOneDriveINT = Cynap.gnUserDataOneDriveINT;
+		gnUserDataWebDAVINT = Cynap.gnUserDataWebDAVINT;
+		gnUserDataOffice365INT = Cynap.gnUserDataOffice365INT;
+		gnUserDataOffice365LocalINT = Cynap.gnUserDataOffice365LocalINT;
+		gnUserDataBookmarksINT = Cynap.gnUserDataBookmarksINT;
+
+	    If(UserData_Show_Settings_Fb)
+		{
+			If((gnUserDataOffice365 > 0) && (gnUserDataOffice365LocalINT > 0)){Office365_Show_Local_Account_Setting = TRUE;}
+			Else {Office365_Show_Local_Account_Setting = FALSE;}
+        }
+		else
+		{
+			If(gnUserDataOffice365LocalINT > 0){Office365_Show_Local_Account_Setting = TRUE;}
+			Else {Office365_Show_Local_Account_Setting = FALSE;}
+		}
+	}
+	else
+	{
+		#if_defined DEBUG_RESPONSE
+			print("[CYNAP_USERDATA_UPDATE Cynap] Class issue\n" );
+		#ENDIF
+	}
+}
+
+/********************************************************************************
+ Function : CYNAP_BOXNAME_UPDATE Cynap
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnProcessingBuffer
+			 
+ Calls    : ProcessBuffer
+ Return   : N/A
+ Purpose  : The purpose of this section is to recieve data from the Cynap and call the ProcessBuffer if it is not running
+ Notes    : Uses a S# event class as a replacement for the original socket-function.
+ ********************************************************************************/
+eventhandler CYNAP_BOXNAME_UPDATE(ProgramMain sender, EventArgs e)
+{
+	#if_defined DEBUG
+		print("[CYNAP_BOXNAME_UPDATE]\n");
+	#ENDIF
+
+	if( sender = Cynap )
+	{
+		gsBoxname = Cynap.gsBoxname; 
+		Box_Name = gsBoxname;
+	}
+	else
+	{
+		#if_defined DEBUG_RESPONSE
+			print("[CYNAP_BOXNAME_UPDATE Cynap] Class issue\n" );
+		#ENDIF
+	}
+}
+                                                
+/********************************************************************************
+ Function : CYNAP_PINROOM_UPDATE Cynap
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnProcessingBuffer
+			 
+ Calls    : ProcessBuffer
+ Return   : N/A
+ Purpose  : The purpose of this section is to recieve data from the Cynap and call the ProcessBuffer if it is not running
+ Notes    : Uses a S# event class as a replacement for the original socket-function.
+ ********************************************************************************/
+eventhandler CYNAP_PINROOM_UPDATE(ProgramMain sender, EventArgs e)
+{
+	#if_defined DEBUG
+		print("[CYNAP_PINROOM_UPDATE]\n");
+	#ENDIF
+
+	if( sender = Cynap )
+	{
+		if(Show_PIN_Code != Cynap.gnShowPINRoom){Show_PIN_Code = Cynap.gnShowPINRoom;}
+
+		gsPINcode = Cynap.gsPINRoom;
+		PIN_Code = gsPINcode;
+	}
+	else
+	{
+		#if_defined DEBUG_RESPONSE
+			print("[CYNAP_PINROOM_UPDATE Cynap] Class issue\n" );
+		#ENDIF
+	}
+}
+  
+/********************************************************************************
+ Function : CYNAP_PINBYOD_UPDATE Cynap
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnProcessingBuffer 
+ Calls    : ProcessBuffer
+ Return   : N/A
+ Purpose  : The purpose of this section is to recieve data from the Cynap and call the ProcessBuffer if it is not running
+ Notes    : Uses a S# event class as a replacement for the original socket-function.
+ ********************************************************************************/
+eventhandler CYNAP_PINBYOD_UPDATE(ProgramMain sender, EventArgs e)
+{
+	#if_defined DEBUG
+		print("[CYNAP_PINBYOD_UPDATE]\n");
+	#ENDIF
+
+	if( sender = Cynap )
+	{
+		Show_PIN_BYOD = Cynap.gnShowPINBYOD;
+		gsPINBYOD = Cynap.gsPINBYOD;
+		PIN_BYOD = gsPINBYOD;
+	}
+	else
+	{
+		#if_defined DEBUG_RESPONSE
+			print("[CYNAP_PINBYOD_UPDATE Cynap] Class issue\n" );
+		#ENDIF
+	}
+}
+
+
+/********************************************************************************
+ Function : CYNAP_SKYPEACCOUNTS_UPDATE Cynap
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnProcessingBuffer 
+ Calls    : ProcessBuffer
+ Return   : N/A
+ Purpose  : The purpose of this section is to recieve data from the Cynap and call the ProcessBuffer if it is not running
+ Notes    : Uses a S# event class as a replacement for the original socket-function.
+ ********************************************************************************/
+eventhandler CYNAP_SKYPEACCOUNTS_UPDATE(ProgramMain sender, EventArgs e)
+{
+	#if_defined DEBUG
+		print("[CYNAP_SKYPEACCOUNTS_UPDATE]\n");
+	#ENDIF
+
+	if( sender = Cynap )
+	{
+	    gnSkypeSettings = Cynap.gnSkypeSettings;
+	    gnSkypeOffice365 = Cynap.gnSkypeOffice365;
+	       
+	    If((gnSkypeSettings > 0) && (gnSkypeOffice365 > 0)){Office365_Skype_Show_Local_Account_Setting = TRUE;}
+	    Else {Office365_Skype_Show_Local_Account_Setting = FALSE;}
+	}
+	else
+	{
+		#if_defined DEBUG_RESPONSE
+			print("[CYNAP_SKYPEACCOUNTS_UPDATE Cynap] Class issue\n" );
+		#ENDIF
+	}
+}
+                                       
+/********************************************************************************
+ Function : CYNAP_OFFICE365ACCOUNTS_UPDATE Cynap
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnProcessingBuffer 
+ Calls    : ProcessBuffer
+ Return   : N/A
+ Purpose  : The purpose of this section is to recieve data from the Cynap and call the ProcessBuffer if it is not running
+ Notes    : Uses a S# event class as a replacement for the original socket-function.
+ ********************************************************************************/
+eventhandler CYNAP_OFFICE365ACCOUNTS_UPDATE(ProgramMain sender, EventArgs e)
+{
+	#if_defined DEBUG
+		print("[CYNAP_OFFICE365ACCOUNTS_UPDATE]\n");
+	#ENDIF
+
+	if( sender = Cynap )
+	{	    
+	    gnOffice365Account = Cynap.gnOffice365AccountState;	       
+                 
+		if(gnOffice365Account)
+		{
+			Office365_Use_Local_Account_Fb = FALSE; 
+			Office365_Dont_Use_Local_Account_Fb = TRUE;		
+		}
+		else
+		{
+			Office365_Use_Local_Account_Fb = TRUE; 
+			Office365_Dont_Use_Local_Account_Fb = FALSE;		
+		}
+	}
+	else
+	{
+		#if_defined DEBUG_RESPONSE
+			print("[CYNAP_OFFICE365ACCOUNTS_UPDATE Cynap] Class issue\n" );
+		#ENDIF
+	}
+}
+
+/********************************************************************************
+ Function : CYNAP_SPLASHSCREEN_UPDATE Cynap
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnProcessingBuffer 
+ Calls    : ProcessBuffer
+ Return   : N/A
+ Purpose  : The purpose of this section is to recieve data from the Cynap and call the ProcessBuffer if it is not running
+ Notes    : Uses a S# event class as a replacement for the original socket-function.
+ ********************************************************************************/
+eventhandler CYNAP_SPLASHSCREEN_UPDATE(ProgramMain sender, EventArgs e)
+{
+	#if_defined DEBUG
+		print("[CYNAP_SPLASHSCREEN_UPDATE]\n");
+	#ENDIF
+
+	if( sender = Cynap )
+	{
+	    gnSplashScreenStatus = Cynap.gnSplashScreenStatus;
+		Splash_Screen_Enabled = gnSplashScreenStatus;
+	}
+	else
+	{
+		#if_defined DEBUG_RESPONSE
+			print("[CYNAP_SPLASHSCREEN_UPDATE Cynap] Class issue\n" );
+		#ENDIF
+	}
+}
+/********************************************************************************
+ Function : CYNAP_PIP_ENABLED_UPDATE Cynap
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnProcessingBuffer 
+ Calls    : ProcessBuffer
+ Return   : N/A
+ Purpose  : The purpose of this section is to recieve data from the Cynap and call the ProcessBuffer if it is not running
+ Notes    : Uses a S# event class as a replacement for the original socket-function.
+ ********************************************************************************/
+eventhandler CYNAP_PIP_ENABLED_UPDATE(ProgramMain sender, EventArgs e)
+{
+	#if_defined DEBUG
+		print("[CYNAP_PIP_ENABLED_UPDATE]\n");
+	#ENDIF
+
+	if( sender = Cynap )
+	{
+		PiP_Enabled = Cynap.gnPiPEnabled;
+	}
+	else
+	{
+		#if_defined DEBUG_RESPONSE
+			print("[CYNAP_PIP_ENABLED_UPDATE Cynap] Class issue\n" );
+		#ENDIF
+	}
+}
+/********************************************************************************
+ Function : CYNAP_PIP_FB_UPDATE Cynap
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnProcessingBuffer 
+ Calls    : ProcessBuffer
+ Return   : N/A
+ Purpose  : The purpose of this section is to recieve data from the Cynap and call the ProcessBuffer if it is not running
+ Notes    : Uses a S# event class as a replacement for the original socket-function.
+ ********************************************************************************/
+eventhandler CYNAP_PIP_FB_UPDATE(ProgramMain sender, EventArgs e)
+{
+	#if_defined DEBUG
+		print("[CYNAP_PIP_FB_UPDATE]\n");
+	#ENDIF
+
+	if( sender = Cynap )
+	{
+		PiP_On_Fb = Cynap.gnPiPOnFB; 
+		PiP_Off_Fb = Cynap.gnPiPOffFB;
+	}
+	else
+	{
+		#if_defined DEBUG_RESPONSE
+			print("[CYNAP_PIP_FB_UPDATE Cynap] Class issue\n" );
+		#ENDIF
+	}
+}
+/*******************************************************************************************
+  Event Handlers
+  Define PUSH, RELEASE, CHANGE, EVENT, SOCKETCONNECT, SOCKETDISCONNECT, SOCKETRECEIVE, SOCKETSTATUS
+*******************************************************************************************/
+
+/********************************************************************************
+ Function : CHANGE SendCommand
+ --------------------------------------------------------------------------------
+ Arguments: N/A 
+ Output   : N/A
+ Globals  : N/A
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This is a direct way to send a command to the Cynap. Any data comming in, goes strait to the cynap
+ Notes    : N/A
+ ********************************************************************************/
+Change SendCommand
+{
+	#if_defined DEBUG
+		print("[SendCommand]\n");
+	#ENDIF
+
+	SendDataNow(SendCommand);
+}
+ 
+PUSH User_Settings_Poll_Type
+{
+	gnUserSettingLoad_Active = FALSE;
+	gnUserSettingSave_Active = TRUE;
+
+		UserData_Dropbox_Present = gnUserDataDropboxINT;
+		UserData_GoogleDrive_Present = gnUserDataGoogleDriveINT;
+		UserData_Box_Present = gnUserDataBoxINT;
+		UserData_Jianguoyun_Present = gnUserDataJianguoyunINT;
+		UserData_OneDrive_Present = gnUserDataOneDriveINT;
+		UserData_WebDAV_Present = gnUserDataWebDAVINT;
+		UserData_Office365_Present = gnUserDataOffice365INT;
+		UserData_Bookmarks_Present = gnUserDataBookmarksINT;
+}
+RELEASE User_Settings_Poll_Type
+{
+	gnUserSettingLoad_Active = TRUE;
+	gnUserSettingSave_Active = FALSE;
+
+		UserData_Dropbox_Present = gnUserDataDropbox;
+		UserData_GoogleDrive_Present = gnUserDataGoogleDrive;
+		UserData_Box_Present = gnUserDataBox;
+		UserData_Jianguoyun_Present = gnUserDataJianguoyun;
+		UserData_OneDrive_Present = gnUserDataOneDrive;
+		UserData_WebDAV_Present = gnUserDataWebDAV;
+		UserData_Office365_Present = gnUserDataOffice365;
+		UserData_Bookmarks_Present = gnUserDataBookmarks;
+}
+
+/********************************************************************************
+ Function : PUSH Load_User_Settings
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : SendData 
+ Return   : N/A
+ Purpose  : Load user settings from USB drive, and close user settigns subpage
+ Notes    : N/A
+ ********************************************************************************/
+Push Load_User_Settings 
+{
+	Cynap.sendUserSettingsLoad(gnSkypeLocalSettings);
+	gnUserDataNotLoaded = FALSE;
+	UserData_Show_Settings_Fb = FALSE;  
+}
+/********************************************************************************
+ Function : PUSH Cancel_User_Settings
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A          
+ Calls    : SendData 
+ Return   : N/A
+ Purpose  : Dont load user settings from USB drive, and close user settigns subpage
+ Notes    : N/A
+ ********************************************************************************/
+Push Cancel_User_Settings 
+{
+	Cynap.sendUserSettingsCancel();
+	gnUserDataNotLoaded = FALSE;
+	UserData_Show_Settings_Fb = FALSE;
+}
+/********************************************************************************
+ Function : PUSH Save_User_Settings
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A          
+ Calls    : SendData 
+ Return   : N/A
+ Purpose  : Save user settings to the USB drive
+ Notes    : N/A
+ ********************************************************************************/
+Push Save_User_Settings {Cynap.sendUserSettingsSave();}
+
+/********************************************************************************
+ Function : PUSH Power_On
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : SendData 
+			Send_WOL
+ Return   : N/A
+ Purpose  : Send the Power_On command to the Cynap
+ Notes    : N/A
+ ********************************************************************************/
+Push Power_On
+{         
+	Send_WOL();
+	Cynap.sendPowerOn();
+}
+/********************************************************************************
+ Function : PUSH Power_Off
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : SendData 
+ Return   : N/A
+ Purpose  : Send the Power_Off command to the Cynap
+ Notes    : N/A
+ ********************************************************************************/
+Push Power_Off {Cynap.sendPowerOff();}
+/********************************************************************************
+ Function : PUSH Power_Toggle
+ --------------------------------------------------------------------------------
+ Arguments: N/A 
+ Output   : N/A
+ Globals  : gnPowerStatus
+ Calls    : SendData 
+			Send_WOL
+ Return   : N/A
+ Purpose  : Toggle which command to send, Power_On, or Power_Off
+ Notes    : N/A
+ ********************************************************************************/
+Push Power_Toggle {Cynap.sendPowerToggle();}
+
+/********************************************************************************
+ Function : PUSH Close_All_Windows
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : BrowseSubpages
+			SendData
+ Return   : N/A
+ Purpose  : This function will close all windows
+ Notes    : N/A
+ ********************************************************************************/
+Push Close_All_Windows{Cynap.sendCloseWindows();}
+
+/********************************************************************************
+ Function : PUSH Take_Snapshot
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : BrowseSubpages
+			SendData
+ Return   : N/A
+ Purpose  : This function will close all windows
+ Notes    : N/A
+ ********************************************************************************/
+Push Take_Snapshot{Cynap.sendTakeSnapshot();}
+
+/********************************************************************************
+ Function : PUSH Office365_Skype_Use_Local_Account
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : 
+ Return   : N/A
+ Purpose  : 
+ Notes    : 
+ ********************************************************************************/      
+Push Office365_Skype_Use_Local_Account
+{
+	gnSkypeLocalSettings = True;
+	Office365_Skype_Use_Local_Account_Fb = TRUE;
+	Office365_Skype_Dont_Use_Local_Account_Fb = FALSE;
+}
+/********************************************************************************
+ Function : PUSH Office365_Skype_Dont_Use_Local_Account
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : 
+ Return   : N/A
+ Purpose  : 
+ Notes    : 
+ ********************************************************************************/      
+Push Office365_Skype_Dont_Use_Local_Account
+{
+	gnSkypeLocalSettings = FALSE;
+	Office365_Skype_Use_Local_Account_Fb = FALSE;
+	Office365_Skype_Dont_Use_Local_Account_Fb = TRUE;
+}
+/********************************************************************************
+ Function : PUSH Office365_Skype_Toggle_Local_Account
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : 
+ Return   : N/A
+ Purpose  : 
+ Notes    : 
+ ********************************************************************************/      
+Push Office365_Skype_Toggle_Local_Account
+{
+	If(gnSkypeLocalSettings = TRUE)
+	{		
+		gnSkypeLocalSettings = FALSE;
+		Office365_Skype_Use_Local_Account_Fb = FALSE;
+		Office365_Skype_Dont_Use_Local_Account_Fb = TRUE;
+	}
+	Else
+	{
+		gnSkypeLocalSettings = TRUE;
+		Office365_Skype_Use_Local_Account_Fb = TRUE;
+		Office365_Skype_Dont_Use_Local_Account_Fb = FALSE;
+	}
+}
+/********************************************************************************
+ Function : PUSH Office365_Use_Local_Account
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : 
+ Return   : N/A
+ Purpose  : 
+ Notes    : 
+ ********************************************************************************/      
+Push Office365_Use_Local_Account{Cynap.sendOffice365AccountLocal();}
+Push Office365_Dont_Use_Local_Account{Cynap.sendOffice365AccountUser();}
+Push Office365_Toggle_Local_Account
+{
+	If(gnOffice365Account)
+	{		
+		Cynap.sendOffice365AccountLocal();
+	}
+	Else
+	{
+		Cynap.sendOffice365AccountUser();
+	}
+}
+/********************************************************************************
+ Function : PUSH Show_Splash_Screen
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function shows the splash scren
+ Notes    : 
+ ********************************************************************************/      
+Push Show_Splash_Screen{Cynap.sendSplahScreenOn();}
+
+/********************************************************************************
+ Function : PUSH PiP_On, PiP_Off, PiP_Toggle
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function shows the splash scren
+ Notes    : 
+ ********************************************************************************/      
+Push PiP_On{Cynap.sendPiPOn();}
+Push PiP_On{Cynap.sendPiPOff();}
+Push PiP_On{Cynap.sendPiPToggle();}
+
+
+/*******************************************************************************************
+  Main()
+*******************************************************************************************/
+/********************************************************************************
+ Function : Main
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnEthernetStatus
+ Calls    : Init
+			InitCynapConnection
+ Return   : N/A
+ Purpose  : This function is the startup code used to start the program
+ Notes    : N/A
+ ********************************************************************************/
+Function Main()
+{
+	Init();
+    WaitForInitializationComplete();
+    Cynap.ConnectionType(Connection);
+
+	wait(100) Cynap.Init(Group_ID, Server_IP, Cynap_RMS_Password);
+
+//	SocketUDP_Enable(UDP_Broadcast, Brodcast_IP, UDP_Port);
+}

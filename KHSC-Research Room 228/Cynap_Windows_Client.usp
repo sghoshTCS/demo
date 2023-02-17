@@ -1,0 +1,2842 @@
+/*******************************************************************************************
+
+	WolfVision GmbH
+	Oberes Ried 14, 6833 Klaus
+	Phone: +43-(0)5523-52250
+	Email: wolfvision@wolfvision.com
+	http://www.wolfvision.com
+
+	Module Name	: Cynap_Windows_Client
+	Comments	:
+	
+	Version	Date(dd/mm/yy)	Remarks 
+	------------------------------------------------------------------------------
+	3.00	07/06/19		Initial Public Release	
+	3.01					Added Zoom Window
+	3.02	07/07/20		Added Teams Window	  
+	3.02.01	23/10/20		Fix for Viz as a USB source not showing correct edit bar
+	3.03.00 25/11/20		Added new sources
+	3.04.00 16/02/21		Added new HDMI Input Source for Camera
+
+	Notes:
+	This version only works with 3-series.
+
+*******************************************************************************************/	
+
+/*******************************************************************************************
+  Compiler Directives
+*******************************************************************************************/
+#SYMBOL_NAME "Cynap Windows Client"
+#HINT "Version 3.04.00"
+#HELP_PDF_FILE "Module documentation.pdf"
+
+#DEFAULT_VOLATILE
+#ENABLE_STACK_CHECKING
+#ENABLE_TRACE
+#PRINT_TO_TRACE
+#ENCODING_ASCII
+//#ENCODING_UTF16
+
+#USER_SIMPLSHARP_LIBRARY "CynapBase"
+
+#DEFINE_CONSTANT	FALSE	0x00
+#DEFINE_CONSTANT	TRUE	0x01
+
+//#DEFINE_CONSTANT	DEBUG						1 							// Debug information for general functions/
+//#DEFINE_CONSTANT	DEBUG_PROGRAM				1 							// Debug information for general program data
+//#DEFINE_CONSTANT	DEBUG_RESPONSE				1							// Shows generic response parsing message
+//#DEFINE_CONSTANT	DEBUG_TRANSMISSION			1							// Shows generic debug messages for transmitting data
+//#DEFINE_CONSTANT	DEBUG_CRITICAL				1							// Critical error or notices
+//#DEFINE_CONSTANT	DEBUG_ERROR					1							// Shows error debug messages
+//#DEFINE_CONSTANT	ERRORLOG					1
+
+#DEFINE_CONSTANT	VERSION_MAJOR				3
+#DEFINE_CONSTANT	VERSION_MINOR				04
+#DEFINE_CONSTANT	VERSION_BUG					00
+
+
+#DEFINE_CONSTANT	MAX_WINDOWS					4							//Max number of windows, set at 4
+#DEFINE_CONSTANT	MAX_DATA_SIZE				1024						//Max length of url data
+
+#DEFINE_CONSTANT	MAX_LINES_SIZE				12							//
+
+
+//Window Screen Type
+#DEFINE_CONSTANT	NORMAL						0							//Normal
+#DEFINE_CONSTANT	FULL						1							//Fulscreen
+                                                                                  
+#HELP_BEGIN
+	WolfVision GmbH
+	Oberes Ried 14, 6833 Klaus
+	Phone: +43-(0)5523-52250
+	Email: wolfvision@wolfvision.com
+	http://www.wolfvision.com
+
+	Please use Cynap firmware Version 1.38a or newer
+
+#HELP_END
+
+/*******************************************************************************************
+  DIGITAL, ANALOG and SERIAL INPUTS and OUTPUTS
+*******************************************************************************************/
+DIGITAL_INPUT _SKIP_, _SKIP_;
+DIGITAL_INPUT Subscribe, Unsubscribe;
+
+DIGITAL_INPUT _SKIP_, _SKIP_, Home, Bookmarks, Power, Light, Zoom_Out, Zoom_In, Back, Forward, FullPage, FullWidth, FullHeight, ArrowDown, ArrowUp, ArrowLeft, ArrowRight;
+DIGITAL_INPUT 		  Previous, Rewind, StepBack, Stop, Play, Pause, StepForward, FastForward, Next;
+DIGITAL_INPUT 	      Reload, WWW, Focus_Near, Focus_Far, Auto_Focus, PictureFreeze, Preset_Recall, Preset_Save, Loop, Capture;
+DIGITAL_INPUT _SKIP_, BrowserURLEnter, BrowserKeyboardClose;
+
+DIGITAL_INPUT _SKIP_, Active_Window_Close, Active_Window_Mode_FullScreen, Active_Window_Mode_Normal, Active_Window_Mode_Toggle;
+DIGITAL_INPUT _SKIP_, Active_Window_Volume_Button, _SKIP_;
+DIGITAL_INPUT _SKIP_, Active_Window_Mute_On, Active_Window_Mute_Off, Active_Window_Mute_Toggle;
+DIGITAL_INPUT _SKIP_, _SKIP_, Active_Window_DualScreen_Mode_On, Active_Window_DualScreen_Mode_Off, Active_Window_DualScreen_Mode_Toggle;
+
+DIGITAL_INPUT _SKIP_, Bookmark_Add;       
+
+DIGITAL_INPUT _SKIP_, Window_Select[MAX_WINDOWS];
+DIGITAL_INPUT _SKIP_, Window_Close[MAX_WINDOWS];
+DIGITAL_INPUT _SKIP_, Window_Mode_Fullscreen[MAX_WINDOWS];
+DIGITAL_INPUT _SKIP_, Window_Mode_Normal[MAX_WINDOWS];
+DIGITAL_INPUT _SKIP_, Window_Mode_Toggle[MAX_WINDOWS];
+DIGITAL_INPUT _SKIP_, Window_Mute_On[MAX_WINDOWS];
+DIGITAL_INPUT _SKIP_, Window_Mute_Off[MAX_WINDOWS];
+DIGITAL_INPUT _SKIP_, Window_Mute_Toggle[MAX_WINDOWS];
+DIGITAL_INPUT _SKIP_, Window_DualScreen_Mode_On[MAX_WINDOWS];
+DIGITAL_INPUT _SKIP_, Window_DualScreen_Mode_Off[MAX_WINDOWS];
+DIGITAL_INPUT _SKIP_, Window_DualScreen_Mode_Toggle[MAX_WINDOWS];
+ 
+DIGITAL_INPUT _SKIP_, Bookmark_Pressed[MAX_LINES_SIZE];
+DIGITAL_INPUT _SKIP_, Bookmark_Delete[MAX_LINES_SIZE];
+
+ANALOG_INPUT _SKIP_,  Active_Window_Volume_In;
+ANALOG_INPUT _SKIP_,  Number_Of_Bookmark_Lines, Bookmark_Scroll_Level_In;
+
+STRING_INPUT _SKIP_, AddBookmarkName[ MAX_DATA_SIZE ];                                
+STRING_INPUT _SKIP_, AddBookmarkURL[ MAX_DATA_SIZE ];                                
+
+STRING_INPUT _SKIP_, BrowserURL[ MAX_DATA_SIZE ];                                
+
+ANALOG_INPUT _SKIP_, Window_Volume_In[MAX_WINDOWS];
+
+
+
+
+DIGITAL_OUTPUT _SKIP_, _SKIP_;
+DIGITAL_OUTPUT _SKIP_, New_Window_Is_Available, _SKIP_;
+DIGITAL_OUTPUT _SKIP_, _SKIP_, Active_Window_Mode_FullScreen_Fb, Active_Window_Mode_Normal_Fb;
+DIGITAL_OUTPUT _SKIP_, Active_Window_Volume_Subpage, Active_Window_Volume_Button_Show, Active_Window_Mute_Button_Show;
+DIGITAL_OUTPUT _SKIP_, Active_Window_Mute_On_Fb, Active_Window_Mute_Off_Fb, _SKIP_;
+DIGITAL_OUTPUT _SKIP_, Active_Window_DualScreen_Mode_Button_Show, Active_Window_DualScreen_Mode_On_Fb, Active_Window_DualScreen_Mode_Off_Fb, _SKIP_;
+                         
+DIGITAL_OUTPUT _SKIP_, EditBar_Active, Home_Show, Bookmarks_Show, Power_Show, Light_Show, Zoom_Out_Show, Zoom_In_Show, Back_Show, Forward_Show, FullPage_Show, FullWidth_Show, FullHeight_Show, ArrowDown_Show, ArrowUp_Show, ArrowLeft_Show, ArrowRight_Show;
+DIGITAL_OUTPUT 		   Previous_Show, Rewind_Show, StepBack_Show, Stop_Show, Play_Show, Pause_Show, StepForward_Show, FastForward_Show, Next_Show;
+DIGITAL_OUTPUT 		   Reload_Show, WWW_Show,Focus_Near_Show, Focus_Far_Show, Auto_Focus_Show, Freeze_Show, Preset_Recall_Show, Preset_Save_Show, Loop_Show, Capture_Show;
+DIGITAL_OUTPUT _SKIP_, Loop_Status, Browser_Keyboard_Show, Window_Data_Show, Bookmark_Active_Fb;
+
+DIGITAL_OUTPUT _SKIP_, _SKIP_, _SKIP_, _SKIP_, _SKIP_, _SKIP_, _SKIP_, _SKIP_, _SKIP_, _SKIP_, _SKIP_;
+DIGITAL_OUTPUT _SKIP_, Window_Selected_fb[MAX_WINDOWS];
+DIGITAL_OUTPUT _SKIP_, Window_Visible_Fb[MAX_WINDOWS];
+DIGITAL_OUTPUT _SKIP_, Window_Mode_Fullscreen_Fb[MAX_WINDOWS];
+DIGITAL_OUTPUT _SKIP_, Window_Mode_Normal_Fb[MAX_WINDOWS];
+DIGITAL_OUTPUT _SKIP_, _SKIP_, _SKIP_, _SKIP_, _SKIP_;
+DIGITAL_OUTPUT _SKIP_, Window_Mute_On_Fb[MAX_WINDOWS];
+DIGITAL_OUTPUT _SKIP_, Window_Mute_Off_Fb[MAX_WINDOWS];
+DIGITAL_OUTPUT _SKIP_, _SKIP_, _SKIP_, _SKIP_, _SKIP_;
+DIGITAL_OUTPUT _SKIP_, Window_DualScreen_Mode_On_Fb[MAX_WINDOWS];
+DIGITAL_OUTPUT _SKIP_, Window_DualScreen_Mode_Off_Fb[MAX_WINDOWS];
+
+ANALOG_OUTPUT  _SKIP_, Number_of_Active_Windows;                                     
+ANALOG_OUTPUT  _SKIP_, Active_Window, Active_Window_Volume_Out;
+
+ANALOG_OUTPUT  		   Number_Of_Bookmarks, Bookmark_Scroll_Level_Out; 
+STRING_OUTPUT  _SKIP_, Window_Data;
+
+STRING_OUTPUT  _SKIP_, UpdateBookmarkName;                                
+STRING_OUTPUT  _SKIP_, UpdateBookmarkURL; 
+
+STRING_OUTPUT  _SKIP_, Window_Source_Text[MAX_WINDOWS];
+ANALOG_OUTPUT  _SKIP_, Window_Source_Type[MAX_WINDOWS];
+ANALOG_OUTPUT  _SKIP_, Window_Volume_Out[MAX_WINDOWS];
+
+STRING_OUTPUT _SKIP_,  Bookmark_Name[MAX_LINES_SIZE];
+STRING_OUTPUT _SKIP_,  Bookmark_URL[MAX_LINES_SIZE];
+
+
+/*******************************************************************************************
+  Structure Definitions
+*******************************************************************************************/
+STRUCTURE WindowsData							//Window Data: This holds all the basic info of a window
+{
+	INTEGER Type;
+	INTEGER subType;
+	STRING  SourceName[MAX_DATA_SIZE];
+	INTEGER Screen;
+	INTEGER Mute;
+	INTEGER Volume;
+	INTEGER Aux;
+	INTEGER RecordStream;
+	INTEGER EditBar;
+	INTEGER BrowserPDFActive;
+	INTEGER PlayPause;
+	INTEGER LoopState;
+	STRING  BrowserURL[MAX_DATA_SIZE];
+	STRING  BrowserTitle[MAX_DATA_SIZE];
+	STRING  ExtraData[MAX_DATA_SIZE];
+};
+
+WindowsData Win[MAX_WINDOWS];  
+
+/*******************************************************************************************
+  Global Variables
+*******************************************************************************************/
+INTEGER gnWindowFreeStatus;													//Variable to check if there are windows available
+
+INTEGER gnActiveWindow;														//Variable to track which window is the active window (1-4)
+INTEGER gnNumberOfWindows;													//Variable to track how many current windows are in use
+INTEGER gnFullscreenWindow;													//Variable tracking if we are in a fullscreen mode or not 
+STRING gsWindowText[ MAX_WINDOWS ][ MAX_DATA_SIZE ];						//Array holding the text for each window
+INTEGER gnWindowType[ MAX_WINDOWS];											//Variable array holding the type of each window
+INTEGER gnWindowVolume[ MAX_WINDOWS];										//Variable array holding the volume level of each
+
+INTEGER gnAuxModeStatus;													//Variable to keep track of the aux mode/window 2 status	
+
+INTEGER gnVisualizerStatus;													//Variable tracking if the visualizer is connected or not
+INTEGER gnVisualizerConnected;												//Variable to control Visualizer socket connection
+INTEGER gnVizLightCode;														//Variable to track if the VZ can use the light function
+INTEGER gnVizPresetCode;													//Variable to track if the VZ can use the preset function
+INTEGER gnVizCaptureCode;													//Variable to track if the VZ can use the capture area shift function
+STRING gsVisualizerData[24];
+INTEGER gnUserDataStatus;
+INTEGER gnUserDataBookmarks;
+
+INTEGER gnNumberOfBookmarks;												//Variable tracking the total number of bookmarks found
+INTEGER gnBookmarkIndex;													//Variable tracking the bookmark index
+INTEGER gnBookmarkList[12];													//Lookup table for bookmarks
+
+/*******************************************************************************************
+  Parameters
+*******************************************************************************************/
+INTEGER_PARAMETER ID;
+
+/*******************************************************************************************
+  Parameter Properties
+*******************************************************************************************/
+#BEGIN_PARAMETER_PROPERTIES ID
+   propValidUnits = unitDecimal; // unitString or unitDecimal|unitHex|unitPercent|unitCharacter|unitTime|unitTicks;
+   // propDefaultUnit = // unitString, unitDecimal, unitHex, unitPercent, unitCharacter, unitTime or unitTicks;
+   // propBounds = lower_bound , upper_bound;
+   propDefaultValue = 0d;  // or, propDefaultValue = "";
+   // propList = // { "value" , "label" } , { "value" , "label" } , ... ;
+   // propShortDescription = "status_bar_hint_text";
+   // #BEGIN_PROP_FULL_DESCRIPTION  line_1...  line_2...  line_n  #END_PROP_FULL_DESCRIPTION
+   // #BEGIN_PROP_NOTES line_1...  line_2...  line_n  #END_PROP_NOTES
+#END_PARAMETER_PROPERTIES
+
+/*******************************************************************************************
+  Simpl# references
+*******************************************************************************************/
+Windows CynapWindows;
+
+/*******************************************************************************************
+  Functions
+*******************************************************************************************/
+/********************************************************************************
+ Function : Init
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : The purpose of this function is to register the eventhandlers between simpl# and simpl+
+ Notes    : N/A
+ ********************************************************************************/
+function Init()
+{
+   	#IF_DEFINED DEBUG
+		print("[Init]\n");
+	#ENDIF
+	
+	print("Cynap Windows Client ver. %.2u.%.2u.%.2u. Wolfvision GmbH.\n", VERSION_MAJOR, VERSION_MINOR, VERSION_BUG );
+
+	RegisterEvent (CynapWindows, EventWindowsUpdate, CYNAP_WINDOWSDATA_UPDATE );
+//	RegisterEvent (CynapWindows, EventWindowsControlUpdate, CYNAP_WINDOWSCONTROL_UPDATE );
+	RegisterEvent (CynapWindows, EventWindowsFreeUpdate, CYNAP_WINDOWSFREE_UPDATE );
+	RegisterEvent (CynapWindows, EventWindowsAUXModeUpdate, CYNAP_WINDOWSAUXMODE_UPDATE );
+
+	RegisterEvent (CynapWindows, EventUserDataStatusUpdate, CYNAP_WINDOWSUSERDATASTATUS_UPDATE );
+	RegisterEvent (CynapWindows, EventUserDataUpdate, CYNAP_WINDOWSUSERDATABOOKMARKS_UPDATE );
+
+	RegisterEvent (CynapWindows, EventBookmarksUpdate, CYNAP_WINDOWSBOOKMARKS_UPDATE );
+	RegisterEvent (CynapWindows, EventVisualizerUpdate, CYNAP_VISUALIZER_UPDATE );
+
+}
+/********************************************************************************
+ Function : SetEditBarXXX
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : Power_Show		
+			Light_Show	
+			Zoom_Out_Show 		
+			Zoom_In_Show 		
+			Back_Show 			
+			Forward_Show 
+			FullPage
+			FullWidth
+			FullHeight		
+			ArrowDown_Show  	
+			ArrowUp_Show 		
+			ArrowLeft_Show  	
+			ArrowRight_Show 	
+			Previous_Show  		
+			Rewind_Show 		
+			StepBack_Show  		
+			Stop_Show  			
+			Play_Show  			
+			Pause_Show  		
+			StepForward_Show  	
+			FastForward_Show  	
+			Next_Show			
+			Reload_Show  		
+			WWW_Show 			
+			Focus_Near_Show		
+			Focus_Far_Show		
+			Auto_Focus_Show		
+			Freeze_Show			
+			Preset_Recall_Show	
+			Preset_Save_Show	
+			Loop_Show	
+			Window_Data_Show    
+			Active_Window_Volume_Button_Show
+			Active_Window_Mute_Button_Show  
+ Globals  : N/A
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : The purpose of these functions are to set what items are visible in the Edit Bar for XXX scenario
+ Notes    : N/A
+ ********************************************************************************/
+function SetEditBarClear()				//Set what items to show in the edit bar
+{
+	#IF_DEFINED DEBUG
+		print("[SetEditBarClear]\n ");	
+	#ENDIF
+
+	Home_Show			= FALSE;
+	Bookmarks_Show		= FALSE;
+	Power_Show			= FALSE;
+	Light_Show			= FALSE;
+	Zoom_Out_Show 		= FALSE;
+	Zoom_In_Show 		= FALSE;
+	Back_Show 			= FALSE;
+	Forward_Show 		= FALSE;
+	FullPage_Show 		= FALSE;
+	FullWidth_Show 		= FALSE;
+	FullHeight_Show 	= FALSE;
+	ArrowDown_Show  	= FALSE;
+	ArrowUp_Show 		= FALSE;
+	ArrowLeft_Show  	= FALSE;
+	ArrowRight_Show 	= FALSE;
+	Previous_Show  		= FALSE;
+	Rewind_Show 		= FALSE;
+	StepBack_Show  		= FALSE;
+	Stop_Show  			= FALSE;
+	Play_Show  			= FALSE;
+	Pause_Show  		= FALSE;
+	StepForward_Show  	= FALSE;
+	FastForward_Show  	= FALSE;
+	Next_Show			= FALSE;
+	Reload_Show  		= FALSE;
+	WWW_Show 			= FALSE;
+	Focus_Near_Show		= FALSE;
+	Focus_Far_Show		= FALSE;
+	Auto_Focus_Show		= FALSE;
+	Freeze_Show			= FALSE;
+	Preset_Recall_Show	= FALSE;
+	Preset_Save_Show	= FALSE;
+	Loop_Show			= FALSE;
+	Capture_Show		= FALSE;
+	Window_Data_Show    = FALSE;
+	Active_Window_Volume_Button_Show	= FALSE;
+	Active_Window_Mute_Button_Show  	= FALSE;
+}
+
+function SetEditBarVolume()				//Set what items to show in the edit bar
+{
+	#IF_DEFINED DEBUG
+		print("[SetEditBarVolume]\n ");	
+	#ENDIF
+
+	Home_Show			= FALSE;
+	Bookmarks_Show		= FALSE;
+	Power_Show			= FALSE;
+	Light_Show			= FALSE;
+	Zoom_Out_Show 		= FALSE;
+	Zoom_In_Show 		= FALSE;
+	Back_Show 			= FALSE;
+	Forward_Show 		= FALSE;
+	FullPage_Show 		= FALSE;
+	FullWidth_Show 		= FALSE;
+	FullHeight_Show 	= FALSE;
+	ArrowDown_Show  	= FALSE;
+	ArrowUp_Show 		= FALSE;
+	ArrowLeft_Show  	= FALSE;
+	ArrowRight_Show 	= FALSE;
+	Previous_Show  		= FALSE;
+	Rewind_Show 		= FALSE;
+	StepBack_Show  		= FALSE;
+	Stop_Show  			= FALSE;
+	Play_Show  			= FALSE;
+	Pause_Show  		= FALSE;
+	StepForward_Show  	= FALSE;
+	FastForward_Show  	= FALSE;
+	Next_Show			= FALSE;
+	Reload_Show  		= FALSE;
+	WWW_Show 			= FALSE;
+	Focus_Near_Show		= FALSE;
+	Focus_Far_Show		= FALSE;
+	Auto_Focus_Show		= FALSE;
+	Freeze_Show			= FALSE;
+	Preset_Recall_Show	= FALSE;
+	Preset_Save_Show	= FALSE;
+	Loop_Show			= FALSE;
+	Capture_Show		= FALSE;
+	Window_Data_Show    = FALSE;
+	Active_Window_Volume_Button_Show	= TRUE;
+	Active_Window_Mute_Button_Show  	= TRUE;
+}
+function SetEditBarHDMI()				//Set what items to show in the edit bar
+{
+	#IF_DEFINED DEBUG
+		print("[SetEditBarHDMI]\n ");	
+	#ENDIF
+
+	Home_Show			= FALSE;
+	Bookmarks_Show		= FALSE;
+	Power_Show			= FALSE;
+	Light_Show			= FALSE;
+	Zoom_Out_Show 		= FALSE;
+	Zoom_In_Show 		= FALSE;
+	Back_Show 			= FALSE;
+	Forward_Show 		= FALSE;
+	FullPage_Show 		= FALSE;
+	FullWidth_Show 		= FALSE;
+	FullHeight_Show 	= FALSE;
+	ArrowDown_Show  	= FALSE;
+	ArrowUp_Show 		= FALSE;
+	ArrowLeft_Show  	= FALSE;
+	ArrowRight_Show 	= FALSE;
+	Previous_Show  		= FALSE;
+	Rewind_Show 		= FALSE;
+	StepBack_Show  		= FALSE;
+	Stop_Show  			= FALSE;
+	Play_Show  			= FALSE;
+	Pause_Show  		= FALSE;
+	StepForward_Show  	= FALSE;
+	FastForward_Show  	= FALSE;
+	Next_Show			= FALSE;
+	Reload_Show  		= FALSE;
+	WWW_Show 			= FALSE;
+	Focus_Near_Show		= FALSE;
+	Focus_Far_Show		= FALSE;
+	Auto_Focus_Show		= FALSE;
+	Freeze_Show			= FALSE;
+	Preset_Recall_Show	= FALSE;
+	Preset_Save_Show	= FALSE;
+	Loop_Show			= FALSE;
+	Capture_Show		= FALSE;
+	Window_Data_Show    = FALSE;
+	Active_Window_Volume_Button_Show	= TRUE;
+	Active_Window_Mute_Button_Show  	= TRUE;
+}
+function SetEditBarVisualizer()				//Set what items to show in the edit bar
+{
+	#IF_DEFINED DEBUG
+		print("[SetEditBarVizualizer]\n ");	
+	#ENDIF
+
+	Home_Show			= FALSE;
+	Bookmarks_Show		= FALSE;
+	Power_Show			= TRUE;
+
+	IF(gnVizLightCode > 0){Light_Show = TRUE;}
+	Else{Light_Show = FALSE;}
+
+	IF(gnVizPresetCode > 0)
+	{
+		Preset_Recall_Show	= TRUE;
+		Preset_Save_Show	= TRUE;
+	}
+	Else
+	{
+		Preset_Recall_Show	= FALSE;
+		Preset_Save_Show	= FALSE;
+	}
+
+	IF(gnVizCaptureCode > 0){Capture_Show = TRUE;}
+	Else{Capture_Show = FALSE;}
+	
+	Zoom_Out_Show 		= TRUE;
+	Zoom_In_Show 		= TRUE;
+	Back_Show 			= FALSE;
+	Forward_Show 		= FALSE;
+	FullPage_Show 		= FALSE;
+	FullWidth_Show 		= FALSE;
+	FullHeight_Show 	= FALSE;
+	ArrowDown_Show  	= FALSE;
+	ArrowUp_Show 		= FALSE;
+	ArrowLeft_Show  	= FALSE;
+	ArrowRight_Show 	= FALSE;
+	Previous_Show  		= FALSE;
+	Rewind_Show 		= FALSE;
+	StepBack_Show  		= FALSE;
+	Stop_Show  			= FALSE;
+	Play_Show  			= FALSE;
+	Pause_Show  		= FALSE;
+	StepForward_Show  	= FALSE;
+	FastForward_Show  	= FALSE;
+	Next_Show			= FALSE;
+	Reload_Show  		= FALSE;
+	WWW_Show 			= FALSE;
+	Focus_Near_Show		= TRUE;
+	Focus_Far_Show		= TRUE;
+	Auto_Focus_Show		= TRUE;
+	Freeze_Show			= TRUE;
+	Loop_Show			= FALSE;
+	Window_Data_Show    = FALSE;
+	Active_Window_Volume_Button_Show	= FALSE;
+	Active_Window_Mute_Button_Show  	= FALSE;
+
+	processlogic();
+}
+function SetEditBarBrowser()				//Set what items to show in the edit bar
+{
+	#IF_DEFINED DEBUG
+		print("[SetEditBarBrowser]\n ");	
+	#ENDIF
+
+	Home_Show			= TRUE;
+	Bookmarks_Show		= TRUE;
+	Power_Show			= FALSE;
+	Light_Show			= FALSE;
+	Zoom_Out_Show 		= TRUE;
+	Zoom_In_Show 		= TRUE;
+	Back_Show 			= TRUE;
+	Forward_Show 		= TRUE;
+
+	If(Win[gnActiveWindow].BrowserPDFActive)
+	{
+		FullPage_Show 		= TRUE;
+		FullWidth_Show 		= TRUE;
+		FullHeight_Show 	= FALSE;
+	}
+	Else
+	{
+		FullPage_Show 		= FALSE;
+		FullWidth_Show 		= FALSE;
+		FullHeight_Show 	= FALSE;
+	}
+
+	ArrowDown_Show  	= TRUE;
+	ArrowUp_Show 		= TRUE;
+	ArrowLeft_Show  	= TRUE;
+	ArrowRight_Show 	= TRUE;
+	Previous_Show  		= FALSE;
+	Rewind_Show 		= FALSE;
+	StepBack_Show  		= FALSE;
+	Stop_Show  			= FALSE;
+	Play_Show  			= FALSE;
+	Pause_Show  		= FALSE;
+	StepForward_Show  	= FALSE;
+	FastForward_Show  	= FALSE;
+	Next_Show			= FALSE;
+	Reload_Show  		= TRUE;
+	WWW_Show 			= TRUE;
+	Focus_Near_Show		= FALSE;
+	Focus_Far_Show		= FALSE;
+	Auto_Focus_Show		= FALSE;
+	Freeze_Show			= FALSE;
+	Preset_Recall_Show	= FALSE;
+	Preset_Save_Show	= FALSE;
+	Loop_Show			= FALSE;
+	Capture_Show		= FALSE;
+	Window_Data_Show    = FALSE;
+	Active_Window_Volume_Button_Show	= TRUE;
+	Active_Window_Mute_Button_Show  	= TRUE;
+}
+function SetEditBarImage()				//Set what items to show in the edit bar
+{
+	#IF_DEFINED DEBUG
+		print("[SetEditBarImage]\n ");	
+	#ENDIF
+
+	Home_Show			= FALSE;
+	Bookmarks_Show		= FALSE;
+	Power_Show			= FALSE;
+	Light_Show			= FALSE;
+	Zoom_Out_Show 		= FALSE;
+	Zoom_In_Show 		= FALSE;
+	Back_Show 			= FALSE;
+	Forward_Show 		= FALSE;
+	FullPage_Show 		= FALSE;
+	FullWidth_Show 		= FALSE;
+	FullHeight_Show 	= FALSE;
+	ArrowDown_Show  	= FALSE;
+	ArrowUp_Show 		= FALSE;
+	ArrowLeft_Show  	= FALSE;
+	ArrowRight_Show 	= FALSE;
+	Previous_Show  		= TRUE;
+	Rewind_Show 		= FALSE;
+	StepBack_Show  		= TRUE;
+	Stop_Show  			= FALSE;
+	Play_Show  			= FALSE;
+	Pause_Show  		= FALSE;
+	StepForward_Show  	= TRUE;
+	FastForward_Show  	= FALSE;
+	Next_Show			= TRUE;
+	Reload_Show  		= FALSE;
+	WWW_Show 			= FALSE;
+	Focus_Near_Show		= FALSE;
+	Focus_Far_Show		= FALSE;
+	Auto_Focus_Show		= FALSE;
+	Freeze_Show			= FALSE;
+	Preset_Recall_Show	= FALSE;
+	Preset_Save_Show	= FALSE;
+	Loop_Show			= FALSE;
+	Capture_Show		= FALSE;
+	Window_Data_Show    = TRUE;
+	Window_Data		    = Win[gnActiveWindow].ExtraData;
+	Active_Window_Volume_Button_Show	= FALSE;
+	Active_Window_Mute_Button_Show  	= FALSE;
+}
+function SetEditBarVideo()				//Set what items to show in the edit bar
+{
+	#IF_DEFINED DEBUG
+		print("[SetEditBarVideo]\n ");	
+	#ENDIF
+
+	Home_Show			= FALSE;
+	Bookmarks_Show		= FALSE;
+	Power_Show			= FALSE;
+	Light_Show			= FALSE;
+	Zoom_Out_Show 		= FALSE;
+	Zoom_In_Show 		= FALSE;
+	Back_Show 			= FALSE;
+	Forward_Show 		= FALSE;
+	FullPage_Show 		= FALSE;
+	FullWidth_Show 		= FALSE;
+	FullHeight_Show 	= FALSE;
+	ArrowDown_Show  	= FALSE;
+	ArrowUp_Show 		= FALSE;
+	ArrowLeft_Show  	= FALSE;
+	ArrowRight_Show 	= FALSE;
+	Previous_Show  		= FALSE;
+	Rewind_Show 		= TRUE;
+	StepBack_Show  		= FALSE;
+	Stop_Show  			= TRUE;
+
+	If(	Win[gnActiveWindow].PlayPause	= 1)
+	{		
+		Play_Show  			= FALSE;
+		Pause_Show  		= TRUE;
+	}
+	Else
+	{
+		Play_Show  			= TRUE;
+		Pause_Show  		= FALSE;
+	}
+
+	StepForward_Show  	= FALSE;
+	FastForward_Show  	= TRUE;
+	Next_Show			= FALSE;
+	Reload_Show  		= FALSE;
+	WWW_Show 			= FALSE;
+	Focus_Near_Show		= FALSE;
+	Focus_Far_Show		= FALSE;
+	Auto_Focus_Show		= FALSE;
+	Freeze_Show			= FALSE;
+	Preset_Recall_Show	= FALSE;
+	Preset_Save_Show	= FALSE;
+	Loop_Show			= TRUE;
+	Capture_Show		= FALSE;
+	Window_Data_Show    = FALSE;
+//	Window_Data		    = Win[gnActiveWindow].ExtraData;
+	Active_Window_Volume_Button_Show	= TRUE;
+	Active_Window_Mute_Button_Show  	= TRUE;
+}
+function SetEditBarOfficeDoc()				//Set what items to show in the edit bar
+{
+	#IF_DEFINED DEBUG
+		print("[SetEditBarOfficeDoc]\n ");	
+	#ENDIF
+
+	Home_Show			= FALSE;
+	Bookmarks_Show		= FALSE;
+	Power_Show			= FALSE;
+	Light_Show			= FALSE;
+	Zoom_Out_Show 		= TRUE;
+	Zoom_In_Show 		= TRUE;
+	Back_Show 			= FALSE;
+	Forward_Show 		= FALSE;
+	FullPage_Show 		= TRUE;
+	FullWidth_Show 		= TRUE;
+	FullHeight_Show 	= FALSE;
+	ArrowDown_Show  	= TRUE;
+	ArrowUp_Show 		= TRUE;
+	ArrowLeft_Show  	= TRUE;
+	ArrowRight_Show 	= TRUE;
+	Previous_Show  		= FALSE;
+	Rewind_Show 		= FALSE;
+	StepBack_Show  		= TRUE;
+	Stop_Show  			= FALSE;
+	Play_Show  			= FALSE;
+	Pause_Show  		= FALSE;
+	StepForward_Show  	= TRUE;
+	FastForward_Show  	= FALSE;
+	Next_Show			= FALSE;
+	Reload_Show  		= FALSE;
+	WWW_Show 			= FALSE;
+	Focus_Near_Show		= FALSE;
+	Focus_Far_Show		= FALSE;
+	Auto_Focus_Show		= FALSE;
+	Freeze_Show			= FALSE;
+	Preset_Recall_Show	= FALSE;
+	Preset_Save_Show	= FALSE;
+	Loop_Show			= FALSE;
+	Capture_Show		= FALSE;
+	Window_Data_Show    = FALSE;
+	Window_Data		    = Win[gnActiveWindow].ExtraData;
+	Active_Window_Volume_Button_Show	= FALSE;
+	Active_Window_Mute_Button_Show  	= FALSE;
+}
+
+function SetEditBarOfficePDF()				//Set what items to show in the edit bar
+{
+	#IF_DEFINED DEBUG
+		print("[SetEditBarOfficePDF]\n ");	
+	#ENDIF
+
+	Home_Show			= FALSE;
+	Bookmarks_Show		= FALSE;
+	Power_Show			= FALSE;
+	Light_Show			= FALSE;
+	Zoom_Out_Show 		= TRUE;
+	Zoom_In_Show 		= TRUE;
+	Back_Show 			= FALSE;
+	Forward_Show 		= FALSE;
+	FullPage_Show 		= TRUE;
+	FullWidth_Show 		= TRUE;
+	FullHeight_Show 	= FALSE;
+	ArrowDown_Show  	= TRUE;
+	ArrowUp_Show 		= TRUE;
+	ArrowLeft_Show  	= TRUE;
+	ArrowRight_Show 	= TRUE;
+	Previous_Show  		= FALSE;
+	Rewind_Show 		= FALSE;
+	StepBack_Show  		= FALSE;
+	Stop_Show  			= FALSE;
+	Play_Show  			= FALSE;
+	Pause_Show  		= FALSE;
+	StepForward_Show  	= FALSE;
+	FastForward_Show  	= FALSE;
+	Next_Show			= FALSE;
+	Reload_Show  		= FALSE;
+	WWW_Show 			= FALSE;
+	Focus_Near_Show		= FALSE;
+	Focus_Far_Show		= FALSE;
+	Auto_Focus_Show		= FALSE;
+	Freeze_Show			= FALSE;
+	Preset_Recall_Show	= FALSE;
+	Preset_Save_Show	= FALSE;
+	Loop_Show			= FALSE;
+	Capture_Show		= FALSE;
+	Window_Data_Show    = TRUE;
+	Window_Data		    = Win[gnActiveWindow].ExtraData;
+	Active_Window_Volume_Button_Show	= FALSE;
+	Active_Window_Mute_Button_Show  	= FALSE;
+}
+function SetEditBarOfficeExcel()				//Set what items to show in the edit bar
+{
+	#IF_DEFINED DEBUG
+		print("[SetEditBarOfficeExcel]\n ");	
+	#ENDIF
+
+	Home_Show			= FALSE;
+	Bookmarks_Show		= FALSE;
+	Power_Show			= FALSE;
+	Light_Show			= FALSE;
+	Zoom_Out_Show 		= TRUE;
+	Zoom_In_Show 		= TRUE;
+	Back_Show 			= FALSE;
+	Forward_Show 		= FALSE;
+	FullPage_Show 		= TRUE;
+	FullWidth_Show 		= TRUE;
+	FullHeight_Show 	= FALSE;
+	ArrowDown_Show  	= TRUE;
+	ArrowUp_Show 		= TRUE;
+	ArrowLeft_Show  	= TRUE;
+	ArrowRight_Show 	= TRUE;
+	Previous_Show  		= FALSE;
+	Rewind_Show 		= FALSE;
+	StepBack_Show  		= TRUE;
+	Stop_Show  			= FALSE;
+	Play_Show  			= FALSE;
+	Pause_Show  		= FALSE;
+	StepForward_Show  	= TRUE;
+	FastForward_Show  	= FALSE;
+	Next_Show			= FALSE;
+	Reload_Show  		= FALSE;
+	WWW_Show 			= FALSE;
+	Focus_Near_Show		= FALSE;
+	Focus_Far_Show		= FALSE;
+	Auto_Focus_Show		= FALSE;
+	Freeze_Show			= FALSE;
+	Preset_Recall_Show	= FALSE;
+	Preset_Save_Show	= FALSE;
+	Loop_Show			= FALSE;
+	Capture_Show		= FALSE;
+	Window_Data_Show    = FALSE;
+	Window_Data		    = Win[gnActiveWindow].ExtraData;
+	Active_Window_Volume_Button_Show	= FALSE;
+	Active_Window_Mute_Button_Show  	= FALSE;
+}
+function SetEditBarOfficePres()				//Set what items to show in the edit bar
+{
+	#IF_DEFINED DEBUG
+		print("[SetEditBarOfficePres]\n ");	
+	#ENDIF
+
+	Home_Show			= FALSE;
+	Bookmarks_Show		= FALSE;
+	Power_Show			= FALSE;
+	Light_Show			= FALSE;
+	Zoom_Out_Show 		= FALSE;
+	Zoom_In_Show 		= FALSE;
+	Back_Show 			= FALSE;
+	Forward_Show 		= FALSE;
+	FullPage_Show 		= FALSE;
+	FullWidth_Show 		= FALSE;
+	FullHeight_Show 	= FALSE;
+	ArrowDown_Show  	= FALSE;
+	ArrowUp_Show 		= FALSE;
+	ArrowLeft_Show  	= FALSE;
+	ArrowRight_Show 	= FALSE;
+	Previous_Show  		= FALSE;
+	Rewind_Show 		= FALSE;
+	StepBack_Show  		= TRUE;
+	Stop_Show  			= FALSE;
+	Play_Show  			= FALSE;
+	Pause_Show  		= FALSE;
+	StepForward_Show  	= TRUE;
+	FastForward_Show  	= FALSE;
+	Next_Show			= FALSE;
+	Reload_Show  		= FALSE;
+	WWW_Show 			= FALSE;
+	Focus_Near_Show		= FALSE;
+	Focus_Far_Show		= FALSE;
+	Auto_Focus_Show		= FALSE;
+	Freeze_Show			= FALSE;
+	Preset_Recall_Show	= FALSE;
+	Preset_Save_Show	= FALSE;
+	Loop_Show			= FALSE;
+	Capture_Show		= FALSE;
+	Window_Data_Show    = TRUE;
+	Window_Data		    = Win[gnActiveWindow].ExtraData;
+	Active_Window_Volume_Button_Show	= TRUE;
+	Active_Window_Mute_Button_Show  	= TRUE;
+}
+function SetEditBarAudio()				//Set what items to show in the edit bar for Audio source
+{
+	#IF_DEFINED DEBUG
+		print("[SetEditBarAudio]\n ");	
+	#ENDIF
+
+	Home_Show			= FALSE;
+	Bookmarks_Show		= FALSE;
+	Power_Show			= FALSE;
+	Light_Show			= FALSE;
+	Zoom_Out_Show 		= FALSE;
+	Zoom_In_Show 		= FALSE;
+	Back_Show 			= FALSE;
+	Forward_Show 		= FALSE;
+	FullPage_Show 		= FALSE;
+	FullWidth_Show 		= FALSE;
+	FullHeight_Show 	= FALSE;
+	ArrowDown_Show  	= FALSE;
+	ArrowUp_Show 		= FALSE;
+	ArrowLeft_Show  	= FALSE;
+	ArrowRight_Show 	= FALSE;
+	Previous_Show  		= FALSE;
+	Rewind_Show 		= TRUE;
+	StepBack_Show  		= FALSE;
+	Stop_Show  			= TRUE;
+
+	If(	Win[gnActiveWindow].PlayPause	= 1)
+	{		
+		Play_Show  			= FALSE;
+		Pause_Show  		= TRUE;
+	}
+	Else
+	{
+		Play_Show  			= TRUE;
+		Pause_Show  		= FALSE;
+	}
+
+	StepForward_Show  	= FALSE;
+	FastForward_Show  	= TRUE;
+	Next_Show			= FALSE;
+	Reload_Show  		= FALSE;
+	WWW_Show 			= FALSE;
+	Focus_Near_Show		= FALSE;
+	Focus_Far_Show		= FALSE;
+	Auto_Focus_Show		= FALSE;
+	Freeze_Show			= FALSE;
+	Preset_Recall_Show	= FALSE;
+	Preset_Save_Show	= FALSE;
+	Loop_Show			= TRUE;
+	Capture_Show		= FALSE;
+	Window_Data_Show    = FALSE;
+	Window_Data		    = Win[gnActiveWindow].ExtraData;
+	Active_Window_Volume_Button_Show	= TRUE;
+	Active_Window_Mute_Button_Show  	= TRUE;
+}
+function SetEditBarOffice365()				//Set what items to show in the edit bar
+{
+	#IF_DEFINED DEBUG
+		print("[SetEditBarOffice365]\n ");	
+	#ENDIF
+
+	Home_Show			= FALSE;
+	Bookmarks_Show		= FALSE;
+	Power_Show			= FALSE;
+	Light_Show			= FALSE;
+	
+	If(Win[gnActiveWindow].Type = 18)
+	{
+		Zoom_Out_Show 		= FALSE;
+		Zoom_In_Show 		= FALSE;
+		Back_Show 			= FALSE;
+		Forward_Show 		= FALSE;	
+		Reload_Show  		= FALSE;
+	}
+	Else
+	{
+		Zoom_Out_Show 		= TRUE;
+		Zoom_In_Show 		= TRUE;
+		Back_Show 			= TRUE;
+		Forward_Show 		= TRUE;
+		Reload_Show  		= TRUE;
+	}
+
+	FullPage_Show 		= FALSE;
+	FullWidth_Show 		= FALSE;
+	FullHeight_Show 	= FALSE;
+	ArrowDown_Show  	= FALSE;
+	ArrowUp_Show 		= FALSE;
+	ArrowLeft_Show  	= FALSE;
+	ArrowRight_Show 	= FALSE;
+	Previous_Show  		= FALSE;
+	Rewind_Show 		= FALSE;
+	StepBack_Show  		= FALSE;
+	Stop_Show  			= FALSE;
+	Play_Show  			= FALSE;
+	Pause_Show  		= FALSE;
+	StepForward_Show  	= FALSE;
+	FastForward_Show  	= FALSE;
+	Next_Show			= FALSE;
+	WWW_Show 			= FALSE;
+	Focus_Near_Show		= FALSE;
+	Focus_Far_Show		= FALSE;
+	Auto_Focus_Show		= FALSE;
+	Freeze_Show			= FALSE;
+	Preset_Recall_Show	= FALSE;
+	Preset_Save_Show	= FALSE;
+	Loop_Show			= FALSE;
+	Capture_Show		= FALSE;
+	Window_Data_Show    = FALSE;
+	Window_Data		    = Win[gnActiveWindow].ExtraData;
+	Active_Window_Volume_Button_Show	= FALSE;
+	Active_Window_Mute_Button_Show  	= FALSE;
+}
+/********************************************************************************
+ Function : WindowControl
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : Window_Visible_Fb
+			Window_DualScreen_Mode_On_Fb
+			Window_DualScreen_Mode_Off_Fb
+			Window_Source_Type
+			Window_Source_Text
+			Window_Mode_Fullscreen_Fb
+			WindowVolume_Out
+			EditBar_Active
+			Active_Window_Volume_Subpage
+			Active_Window_Mute_On_Fb
+			Active_Window_Mute_Off_Fb
+			Active_Window_Mode_Normal_Fb
+			Active_Window_Mode_Fullscreen_Fb
+			Active_Window_DualScreen_Mode_On_Fb
+			Active_Window_DualScreen_Mode_Off_Fb
+ Globals  : gnNumberOfWindows
+			gnFullscreenWindow
+ Calls    : SetEditBarClear
+			SetEditBarVisualizer
+			SetEditBarHDMI
+			SetEditBarBrowser
+			SetEditBarVideo
+			SetEditBarImage
+			SetEditBarOfficePDF
+			SetEditBarOfficePres
+			SetEditBarOfficeDoc
+			SetEditBarOfficeExcel
+			SetEditBarOfficeAudio
+ Return   : N/A
+ Purpose  : The purpose of this function is to configure the 4 windows, 
+			and what is displayed		
+ Notes    : Show/Hide active/inactive windows
+				Including Source text
+			Show/Hide Edit Bar
+			Show if a window is in FullScreen mode
+			Display the volume level for a selected window
+ ********************************************************************************/
+function WindowControl()													//Window data and when to use it
+{
+	Integer nWindowLoop, nBookmarkMatch, nLoop;
+
+	#IF_DEFINED DEBUG
+		print("[WindowControl]\n ");	
+	#ENDIF
+                        
+	gnNumberOfWindows = 0;
+
+	For(nWindowLoop = 1 to MAX_WINDOWS)										// Cycle through all the windows
+	{
+    	If(Win[nWindowLoop].Type = FALSE)									//Check to see if a window has a source or not
+		{	
+			Window_Visible_Fb[nWindowLoop] = FALSE;							//No Source, Visible_Fb = 0
+			If(Win[nWindowLoop].EditBar = 1)
+			{
+            	Win[nWindowLoop].EditBar = 0;
+				EditBar_Active = FALSE;
+				Active_Window_Volume_Subpage = FALSE;
+			}
+		}
+		Else																//We do have a source, 
+        {
+			Window_Visible_Fb[nWindowLoop] = TRUE;							//Set window to be visible
+			gnNumberOfWindows = (gnNumberOfWindows + 1);					//Count the number of used windows
+		}
+
+		If(gnWindowType[nWindowLoop] != Win[nWindowLoop].Type) 		
+		{
+		    if((Win[nWindowLoop].Type = 16) || (Win[nWindowLoop].Type = 17))
+		    {
+				Window_Source_Type[nWindowLoop] = Win[nWindowLoop].subType;			//Set source to output
+				gnWindowType[nWindowLoop] = Win[nWindowLoop].Type;
+            }
+			else
+			{
+				Window_Source_Type[nWindowLoop] = Win[nWindowLoop].Type;			//Set source to output
+				gnWindowType[nWindowLoop] = Win[nWindowLoop].Type;
+        	}
+		}
+
+		If(gsWindowText[nWindowLoop] != Win[nWindowLoop].SourceName) 		
+		{
+			Window_Source_Text[nWindowLoop] = Win[nWindowLoop].SourceName;		//Set source name to output
+			gsWindowText[nWindowLoop] = Win[nWindowLoop].SourceName;
+        }
+
+		If(gnWindowVolume[nWindowLoop] != Win[nWindowLoop].Volume) 		
+		{
+			Window_Volume_Out[nWindowLoop]  = Win[nWindowLoop].Volume;
+			gnWindowVolume[nWindowLoop] = Win[nWindowLoop].Volume;
+        }
+
+		If(Win[nWindowLoop].Mute = TRUE)									//check to see if window is full screen or normal
+		{
+			Window_Mute_On_Fb[nWindowLoop] = TRUE;
+			Window_Mute_Off_Fb[nWindowLoop] = FALSE;
+		}
+		Else
+		{
+			Window_Mute_On_Fb[nWindowLoop] = FALSE;
+			Window_Mute_Off_Fb[nWindowLoop] = TRUE;
+		}
+
+		If(Win[nWindowLoop].Aux = TRUE)										//check to see if window is Dual screen or normal
+		{
+			Window_DualScreen_Mode_On_Fb[nWindowLoop] = TRUE;
+			Window_DualScreen_Mode_Off_Fb[nWindowLoop] = FALSE;
+		}
+		Else
+		{
+			Window_DualScreen_Mode_On_Fb[nWindowLoop] = FALSE;
+			Window_DualScreen_Mode_Off_Fb[nWindowLoop] = TRUE;
+		}
+
+		If(Win[nWindowLoop].Screen = FULL)									//check to see if window is full screen or normal
+		{
+			Window_Mode_Normal_Fb[nWindowLoop] = FALSE;
+			Window_Mode_Fullscreen_Fb[nWindowLoop] = TRUE;
+		}
+		Else																//normal
+		{
+			Window_Mode_Normal_Fb[nWindowLoop] = TRUE;
+			Window_Mode_Fullscreen_Fb[nWindowLoop] = FALSE;
+		}
+
+		If(nWindowLoop = gnActiveWindow)								
+		{
+			Active_Window_Mute_On_Fb = Window_Mute_On_Fb[nWindowLoop];
+			Active_Window_Mute_Off_Fb = Window_Mute_Off_Fb[nWindowLoop];
+			Active_Window_Mode_Normal_Fb = Window_Mode_Normal_Fb[nWindowLoop];
+			Active_Window_Mode_FullScreen_Fb = Window_Mode_Fullscreen_Fb[nWindowLoop];
+			Active_Window_Volume_Out = Window_Volume_Out[nWindowLoop];
+			Active_Window_DualScreen_Mode_On_Fb = Window_DualScreen_Mode_On_Fb[nWindowLoop];
+			Active_Window_DualScreen_Mode_Off_Fb = Window_DualScreen_Mode_Off_Fb[nWindowLoop];
+
+			If(gnAuxModeStatus >= 3)	{Active_Window_DualScreen_Mode_Button_Show = TRUE;}
+			Else	{Active_Window_DualScreen_Mode_Button_Show = FALSE;}
+
+			nBookmarkMatch = FALSE;
+			For(nLoop = 1 to gnNumberofBookmarks)
+			{
+				CynapWindows.BookmarksRefresh(nLoop);	
+				If(Win[gnActiveWindow].BrowserURL = CynapWindows.BookmarksURL){nBookmarkMatch = TRUE;}
+	    	}
+	         
+			If(nBookmarkMatch = TRUE){Bookmark_Active_Fb = TRUE;}
+			Else{Bookmark_Active_Fb = FALSE;}
+	
+			#IF_DEFINED DEBUG
+				print("[WindowControl]Win[gnActiveWindow].Type = %u\n ", Win[gnActiveWindow].Type);	
+				print("[WindowControl]Win[gnActiveWindow].subType = %u\n ", Win[gnActiveWindow].subType);	
+			#ENDIF
+
+			//output what controls should be shown in edit bar
+			CSWITCH(Win[gnActiveWindow].Type)
+			{ 
+			   	CASE(1): {SetEditBarVisualizer(); BREAK;}
+				CASE(2): {SetEditBarVolume(); BREAK;}
+			   	CASE(3): {SetEditBarBrowser(); BREAK;}
+				CASE(4): {SetEditBarVolume(); BREAK;}
+				CASE(5): {SetEditBarVolume(); BREAK;}
+		    	CASE(6): {SetEditBarVideo(); BREAK;}
+				CASE(7): {SetEditBarVolume(); BREAK;}
+		    	CASE(8): {SetEditBarImage(); BREAK;}
+		    	CASE(9): {SetEditBarOfficePDF(); BREAK;}
+		    	CASE(10): {SetEditBarOfficePres(); BREAK;}
+		    	CASE(11): {SetEditBarOfficeDoc(); BREAK;}
+		    	CASE(12): {SetEditBarOfficeExcel(); BREAK;}
+		    	CASE(13): {SetEditBarClear(); BREAK;}
+		    	CASE(14): {SetEditBarAudio(); BREAK;}
+		    	CASE(15): {SetEditBarVolume(); BREAK;}
+				CASE(16): 
+				{
+					If(Win[gnActiveWindow].subType = 1){SetEditBarVisualizer();}
+					else{SetEditBarVolume(); }
+					BREAK;
+					}
+				CASE(17): {SetEditBarVolume(); BREAK;}
+				CASE(18): {SetEditBarOffice365(); BREAK;}
+				CASE(19): {SetEditBarOffice365(); BREAK;}
+				CASE(20): {SetEditBarOffice365(); BREAK;}
+				CASE(21): {SetEditBarOffice365(); BREAK;}
+				CASE(22): {SetEditBarOffice365(); BREAK;}
+				CASE(23): {SetEditBarOffice365(); BREAK;}
+				CASE(27): {SetEditBarVolume(); BREAK;}
+				CASE(29): {SetEditBarVolume(); BREAK;}
+				CASE(30): {SetEditBarOffice365(); BREAK;}
+				CASE(96): {SetEditBarVolume(); BREAK;}
+				CASE(97): {SetEditBarVolume(); BREAK;}
+				CASE(98): {SetEditBarVolume(); BREAK;}
+				CASE(99): {SetEditBarVolume(); BREAK;}
+				DEFAULT: {SetEditBarClear(); BREAK;}
+			}
+			Loop_Status = Win[gnActiveWindow].LoopState;
+		}
+	}
+}
+/********************************************************************************
+ Function : Update_Bookmarks
+ --------------------------------------------------------------------------------
+ Arguments: nOffset, where in the list to offset
+ Output   : 			
+ Globals  : 
+ Calls    :  
+ Return   : N/A
+ Purpose  : This function will update the bookmark list
+ Notes    : N/A
+ ********************************************************************************/
+Function Update_Bookmarks(Integer nOffset)  
+{
+	Integer nLoop, nReverseList;
+
+	#if_defined DEBUG
+		print("[Update_Bookmarks]\n");
+	#ENDIF
+	#if_defined DEBUG_PROGRAM
+		print("[Update_Bookmarks]nOffset = %u\n", nOffset);
+	#ENDIF
+
+	If(nOffset = 0){Bookmark_Scroll_Level_Out = 0;}
+
+   	for(nLoop = 1 to Number_Of_Bookmark_Lines)
+	{
+		If((nLoop + nOffset) <= gnNumberOfBookmarks)
+		{
+			nReverseList = ((gnNumberOfBookmarks + 1) - (nLoop + nOffset));
+		    gnBookmarkList[nLoop] = nReverseList;
+			CynapWindows.BookmarksRefresh(nReverseList);	
+			Bookmark_Name[nLoop] = CynapWindows.BookmarksName;
+			Bookmark_URL[nLoop] = CynapWindows.BookmarksURL;
+		}
+		Else
+		{
+			Bookmark_Name[nLoop] = "";
+			Bookmark_URL[nLoop] = "";
+		    gnBookmarkList[nLoop] = 0;
+		}
+	}
+}
+/*******************************************************************************************
+  Event Handlers
+*******************************************************************************************/
+/********************************************************************************
+ EventHandler : CYNAP_WINDOWSDATA_UPDATE
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : Recording_Enabled_Fb
+			Recording_Disabled_Fb
+ Globals  : gnRecordingState
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : The purpose of this eventhandler is to sync data from the simpl# and simpl+ 
+ Notes    : N/A
+ ********************************************************************************/
+eventhandler CYNAP_WINDOWSDATA_UPDATE(Windows sender, EventArgs e)
+{
+	INTEGER nLoop;
+
+	#if_defined DEBUG
+		print("[CYNAP_WINDOWSDATA_UPDATE]\n");
+	#ENDIF
+
+	if( sender = CynapWindows )
+	{
+		for(nLoop = 1 to MAX_WINDOWS)
+		{
+			CynapWindows.refreshWindowsStructure(nLoop);
+
+        	Win[nLoop].Type = CynapWindows.gnWindowType;
+        	Win[nLoop].subType = CynapWindows.gnWindowSubType;
+        	Win[nLoop].SourceName = CynapWindows.gsWindowSourceName;
+        	Win[nLoop].Screen = CynapWindows.gnWindowScreen;
+        	Win[nLoop].Mute = CynapWindows.gnWindowMute;
+        	Win[nLoop].Volume = CynapWindows.gnWindowVolume;
+        	Win[nLoop].Aux = CynapWindows.gnWindowAux;
+        	Win[nLoop].RecordStream = CynapWindows.gnWindowRecordStream;
+        	Win[nLoop].BrowserPDFActive = CynapWindows.gnWindowBrowserPDFActive;
+        	Win[nLoop].PlayPause = CynapWindows.gnWindowPlayPause;
+        	Win[nLoop].LoopState = CynapWindows.gnWindowLoopState;
+        	Win[nLoop].BrowserURL = CynapWindows.gsWindowBrowserURL;
+        	Win[nLoop].BrowserTitle = CynapWindows.gsWindowBrowserTitle;
+        	Win[nLoop].ExtraData = CynapWindows.gsWindowExtraData;		
+		}
+		WindowControl();
+	}
+	else
+	{
+		#if_defined DEBUG_CRITICAL
+			print("[CYNAP_WINDOWSDATA_UPDATE Cynap] Class issue\n" );
+		#ENDIF
+	}
+}
+/********************************************************************************
+ EventHandler : CYNAP_WINDOWSAUXMODE_UPDATE
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : Recording_Enabled_Fb
+			Recording_Disabled_Fb
+ Globals  : gnRecordingState
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : The purpose of this eventhandler is to sync data from the simpl# and simpl+ 
+ Notes    : N/A
+ ********************************************************************************/
+eventhandler CYNAP_WINDOWSAUXMODE_UPDATE(Windows sender, EventArgs e)
+{
+	INTEGER nLoop;
+
+	#if_defined DEBUG
+		print("[CYNAP_WINDOWSAUXMODE_UPDATE]\n");
+	#ENDIF
+
+	if( sender = CynapWindows )
+	{
+		gnAuxModeStatus = CynapWindows.gnAuxModeStatus; 	
+//		Mirroring_Mode = gnAuxModeStatus; 	
+	}
+	else
+	{
+		#if_defined DEBUG_CRITICAL
+			print("[CYNAP_WINDOWSAUXMODE_UPDATE Cynap] Class issue\n" );
+		#ENDIF
+	}
+}
+
+/********************************************************************************
+ EventHandler : CYNAP_WINDOWSFREE_UPDATE
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : Recording_Enabled_Fb
+			Recording_Disabled_Fb
+ Globals  : gnRecordingState
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : The purpose of this eventhandler is to sync data from the simpl# and simpl+ 
+ Notes    : N/A
+ ********************************************************************************/
+eventhandler CYNAP_WINDOWSFREE_UPDATE(Windows sender, EventArgs e)
+{
+	INTEGER nLoop;
+
+	#if_defined DEBUG
+		print("[CYNAP_WINDOWSFREE_UPDATE]\n");
+	#ENDIF
+
+	if( sender = CynapWindows )
+	{
+		gnWindowFreeStatus = CynapWindows.gnWindowsFree; 		
+		New_Window_Is_Available = gnWindowFreeStatus;
+	}
+	else
+	{
+		#if_defined DEBUG_CRITICAL
+			print("[CYNAP_WINDOWSFREE_UPDATE Cynap] Class issue\n" );
+		#ENDIF
+	}
+}
+/********************************************************************************
+ EventHandler : CYNAP_WINDOWSUSERDATASTATUS_UPDATE
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : Recording_Enabled_Fb
+			Recording_Disabled_Fb
+ Globals  : gnRecordingState
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : The purpose of this eventhandler is to sync data from the simpl# and simpl+ 
+ Notes    : N/A
+ ********************************************************************************/
+eventhandler CYNAP_WINDOWSUSERDATASTATUS_UPDATE(Windows sender, EventArgs e)
+{
+	INTEGER nLoop;
+
+	#if_defined DEBUG
+		print("[CYNAP_WINDOWSUSERDATASTATUS_UPDATE]\n");
+	#ENDIF
+
+	if( sender = CynapWindows )
+	{
+		gnUserDataStatus = CynapWindows.gnUserDataStatus; 		
+	}
+	else
+	{
+		#if_defined DEBUG_CRITICAL
+			print("[CYNAP_WINDOWSUSERDATASTATUS_UPDATE Cynap] Class issue\n" );
+		#ENDIF
+	}
+}
+/********************************************************************************
+ EventHandler : CYNAP_WINDOWSUSERDATABOOKMARKS_UPDATE
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : Recording_Enabled_Fb
+			Recording_Disabled_Fb
+ Globals  : gnRecordingState
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : The purpose of this eventhandler is to sync data from the simpl# and simpl+ 
+ Notes    : N/A
+ ********************************************************************************/
+eventhandler CYNAP_WINDOWSUSERDATABOOKMARKS_UPDATE(Windows sender, EventArgs e)
+{
+	INTEGER nLoop;
+
+	#if_defined DEBUG
+		print("[CYNAP_WINDOWSUSERDATABOOKMARKS_UPDATE]\n");
+	#ENDIF
+
+	if( sender = CynapWindows )
+	{
+		gnUserDataBookmarks = CynapWindows.gnUserDataBookmarks; 
+	}
+	else
+	{
+		#if_defined DEBUG_CRITICAL
+			print("[CYNAP_WINDOWSUSERDATABOOKMARKS_UPDATE Cynap] Class issue\n" );
+		#ENDIF
+	}
+}
+/********************************************************************************
+ EventHandler : CYNAP_WINDOWSBOOKMARKS_UPDATE
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : Recording_Enabled_Fb
+			Recording_Disabled_Fb
+ Globals  : gnRecordingState
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : The purpose of this eventhandler is to sync data from the simpl# and simpl+ 
+ Notes    : N/A
+ ********************************************************************************/
+eventhandler CYNAP_WINDOWSBOOKMARKS_UPDATE(Windows sender, EventArgs e)
+{
+	INTEGER nLoop;
+
+	#if_defined DEBUG
+		print("[CYNAP_WINDOWSBOOKMARKS_UPDATE]\n");
+	#ENDIF
+
+	if( sender = CynapWindows )
+	{
+		gnNumberOfBookmarks = CynapWindows.gnNumberOfBookmarks; 
+
+		If(Number_Of_Bookmarks != gnNumberOfBookmarks)
+		{
+			Number_Of_Bookmarks = gnNumberOfBookmarks;
+			Update_Bookmarks(0);
+		}			
+	}		
+	else
+	{
+		#if_defined DEBUG_CRITICAL
+			print("[CYNAP_WINDOWSBOOKMARKS_UPDATE Cynap] Class issue\n" );
+		#ENDIF
+	}
+}
+
+/********************************************************************************
+ EventHandler : CYNAP_VISUALIZER_UPDATE
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : Recording_Enabled_Fb
+			Recording_Disabled_Fb
+ Globals  : gnRecordingState
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : The purpose of this eventhandler is to sync data from the simpl# and simpl+ 
+ Notes    : N/A
+ ********************************************************************************/
+eventhandler CYNAP_VISUALIZER_UPDATE(Windows sender, EventArgs e)
+{
+	INTEGER nLoop;
+
+	#if_defined DEBUG
+		print("[CYNAP_VISUALIZER_UPDATE]\n");
+	#ENDIF
+
+	if( sender = CynapWindows )
+	{
+		gnVisualizerStatus = CynapWindows.gnVisualizerStatus;	
+		gsVisualizerData = CynapWindows.gsVisualizerData;
+
+	    gnVizLightCode = bit(gsVisualizerData, 7, 1);
+	    gnVizPresetCode = bit(gsVisualizerData, 9, 7);
+	    gnVizCaptureCode = bit(gsVisualizerData, 10, 7);
+	}		
+	else
+	{
+		#if_defined DEBUG_CRITICAL
+			print("[CYNAP_VISUALIZER_UPDATE Cynap] Class issue\n" );
+		#ENDIF
+	}
+}
+
+                     	
+
+/*******************************************************************************************
+  Push/Release/Change events
+*******************************************************************************************/
+PUSH Subscribe {CynapWindows.Subscribe();}
+PUSH Unsubscribe {CynapWindows.Unsubscribe();}
+
+
+///Window controls 
+/********************************************************************************
+ Function : PUSH Window_Select
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : Active_Window_Volume_Subpage
+			Window_Selected_fb
+			EditBar_Active
+			Active_Window
+ Globals  : gnActiveWindow
+			Win[x].EditBar
+			Win[x].Type			
+ Calls    : SetEditBarClear
+			SendData
+ Return   : N/A
+ Purpose  : This function will update the currently selected window, and clear the 
+			volume bar subpage and display the correct buttons in the edit bar.
+ Notes    : N/A
+ ********************************************************************************/
+ 
+Push Window_Select
+{ 
+	Integer nWindowPressed, nLoop, nBookmarkMatch;
+
+	nWindowPressed = getlastmodifiedarrayindex();
+                  
+	#if_defined DEBUG_PROGRAM
+		print("[Window_Select]Window# %u\n", nWindowPressed );
+	#ENDIF
+
+	Active_Window_Volume_Subpage = FALSE;
+
+	If(nWindowPressed = gnActiveWindow)								//Check if window is active
+	{
+		gnActiveWindow = FALSE;										//if it is, then de-activate it
+		Window_Selected_fb[nWindowPressed] = FALSE;
+		SetEditBarClear();
+		EditBar_Active = FALSE;
+		Active_Window = gnActiveWindow;
+		Win[nWindowPressed].EditBar = 0;
+	}
+	Else															//Else make window active
+	{
+		gnActiveWindow = nWindowPressed;							//assign global variable to new active window
+		Active_Window = gnActiveWindow;
+
+		For(nLoop = 1 to MAX_WINDOWS)
+		{
+			If(nLoop = gnActiveWindow)			
+			{
+				Window_Selected_fb[nLoop] = TRUE;
+            }
+			Else
+			{
+				Window_Selected_fb[nLoop] = FALSE;
+			}
+		}
+	
+		nBookmarkMatch = FALSE;
+		For(nLoop = 1 to gnNumberofBookmarks)
+		{
+			CynapWindows.BookmarksRefresh(nLoop);	
+			If(Win[gnActiveWindow].BrowserURL = CynapWindows.BookmarksURL){nBookmarkMatch = TRUE;}
+    	}
+         
+		If(nBookmarkMatch = TRUE){Bookmark_Active_Fb = TRUE;}
+		Else{Bookmark_Active_Fb = FALSE;}
+
+		Win[nWindowPressed].EditBar = 1;
+		EditBar_Active = TRUE;									//Show the edit bar
+
+		WindowControl();
+	}
+}
+/********************************************************************************
+ Function : PUSH Window_Close
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : This will close the selected window (Valid selection 1-4)
+ Notes    : N/A
+ ********************************************************************************/
+Push Window_Close
+{
+	Integer nWindowSelected;		
+
+	nWindowSelected = Getlastmodifiedarrayindex();
+	CynapWindows.setWindowsClose(nWindowSelected);
+	gnActiveWindow = FALSE;
+	WindowControl();
+} 
+/********************************************************************************
+ Function : PUSH Window_Mode_Fullscreen
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : This function will put the selected window into fullscreen mode
+ Notes    : N/A
+ ********************************************************************************/
+Push Window_Mode_Fullscreen
+{
+	Integer nWindowSelected;		
+
+	nWindowSelected = Getlastmodifiedarrayindex();
+	CynapWindows.setWindowsModeFullscreen(nWindowSelected);
+}
+/********************************************************************************
+ Function : PUSH Window_Mode_Normal
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : This function will put the selected window into normal mode
+ Notes    : N/A
+ ********************************************************************************/
+Push Window_Mode_Normal
+{
+	Integer nWindowSelected;		
+
+	nWindowSelected = Getlastmodifiedarrayindex();
+	CynapWindows.setWindowsModeNormal(nWindowSelected);
+}
+/********************************************************************************
+ Function : PUSH Window_Mode_Toggle
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : Win[x].Screen
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : This function will put the selected window into fullscreen or normal mode
+ Notes    : N/A
+ ********************************************************************************/
+Push Window_Mode_Toggle
+{
+	Integer nWindowSelected;		
+
+	nWindowSelected = Getlastmodifiedarrayindex();
+
+	If(Win[nWindowSelected].Screen = FULL)
+	{
+		CynapWindows.setWindowsModeNormal(nWindowSelected);
+	}
+	Else
+	{
+		CynapWindows.setWindowsModeFullscreen(nWindowSelected);
+	}
+} 
+          
+/********************************************************************************
+ Function : CHANGE Window_Volume_In
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : This function will change the volume level for the selected window
+ Notes    : N/A
+ ********************************************************************************/
+Change Window_Volume_In
+{
+	Integer nWindowSelected;		
+
+	nWindowSelected = Getlastmodifiedarrayindex();
+	CynapWindows.setWindowsVolumeIn(nWindowSelected, Window_Volume_In[nWindowSelected]);
+}
+
+/********************************************************************************
+ Function : PUSH Window_Mute_On
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : This function will set the selected window mute on
+ Notes    : N/A
+ ********************************************************************************/
+Push Window_Mute_On
+{
+	Integer nWindowSelected;		
+         
+	nWindowSelected = Getlastmodifiedarrayindex();
+	CynapWindows.setWindowsMuteOn(nWindowSelected);	
+}  
+/********************************************************************************
+ Function : PUSH Window_Mute_Off
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : This function will set the selected window mute off
+ Notes    : N/A
+ ********************************************************************************/
+Push Window_Mute_Off
+{
+	Integer nWindowSelected;		
+         
+	nWindowSelected = Getlastmodifiedarrayindex();
+	CynapWindows.setWindowsMuteOff(nWindowSelected);	
+}  
+/********************************************************************************
+ Function : PUSH Window_Mute_Toggle
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : Win[x].Mute
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : This function will toggle the selected window mute on or off
+ Notes    : N/A
+ ********************************************************************************/
+Push Window_Mute_Toggle
+{
+	Integer nWindowSelected;		
+         
+	nWindowSelected = Getlastmodifiedarrayindex();
+
+	If(	Win[nWindowSelected].Mute = 1)
+	{
+		CynapWindows.setWindowsMuteOff(nWindowSelected);	
+	}
+	Else
+	{
+		CynapWindows.setWindowsMuteOn(nWindowSelected);	
+	}
+} 
+/********************************************************************************
+ Function : PUSH Window_DualScreen_Mode_On
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : This function will set the selected window DualScreen_Mode to on
+ Notes    : N/A
+ ********************************************************************************/
+Push Window_DualScreen_Mode_On
+{
+	Integer nWindowSelected;		
+         
+	nWindowSelected = Getlastmodifiedarrayindex();
+	CynapWindows.setWindowsDualScreenmodeOn(nWindowSelected);
+}  
+/********************************************************************************
+ Function : PUSH Window_DualScreen_Mode_Off
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : This function will set the selected window DualScreen_Mode to off
+ Notes    : N/A
+ ********************************************************************************/
+Push Window_DualScreen_Mode_Off
+{
+	Integer nWindowSelected;		
+         
+	nWindowSelected = Getlastmodifiedarrayindex();
+	CynapWindows.setWindowsDualScreenmodeOff(nWindowSelected);
+}  
+/********************************************************************************
+ Function : PUSH Window_DualScreen_Mode_Toggle
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : This function will toggle the selected window DualScreen_Mode on or off
+ Notes    : N/A
+ ********************************************************************************/
+Push Window_DualScreen_Mode_Toggle
+{
+	Integer nWindowSelected;		
+         
+	nWindowSelected = Getlastmodifiedarrayindex();
+
+	CynapWindows.setWindowsDualScreenmodeToggle(nWindowSelected);
+} 
+  
+
+//Active window controls
+
+/********************************************************************************
+ Function : PUSH Active_Window_Close
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnActiveWindow
+ Calls    : WindowControl
+ Return   : N/A
+ Purpose  : This function will close the active window
+ Notes    : N/A
+ ********************************************************************************/
+Push Active_Window_Close
+{
+	CynapWindows.setWindowsClose(gnActiveWindow);
+		WindowControl();
+} 
+/********************************************************************************
+ Function : PUSH Active_Window_Mode_Fullscreen
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnActiveWindow
+ Calls    : N/A 
+ Return   : N/A
+ Purpose  : This function will set the active window mode to fullscreen
+ Notes    : N/A
+ ********************************************************************************/
+Push Active_Window_Mode_Fullscreen {CynapWindows.setWindowsModeFullscreen(gnActiveWindow);}
+/********************************************************************************
+ Function : PUSH Active_Window_Mode_Normal
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnActiveWindow
+ Calls    : N/A 
+ Return   : N/A
+ Purpose  : This function will set the active window mode to normal
+ Notes    : N/A
+ ********************************************************************************/
+Push Active_Window_Mode_Normal{CynapWindows.setWindowsModeNormal(gnActiveWindow);}
+/********************************************************************************
+ Function : PUSH Active_Window_Mode_Toggle
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnActiveWindow
+			Win[x].Screen
+ Calls    : N/A 
+ Return   : N/A
+ Purpose  : This function will toggle the active window mode to fullscreen or normal
+ Notes    : N/A
+ ********************************************************************************/
+Push Active_Window_Mode_Toggle
+{
+	If(Win[gnActiveWindow].Screen = FULL){CynapWindows.setWindowsModeNormal(gnActiveWindow);}
+	Else{CynapWindows.setWindowsModeFullscreen(gnActiveWindow);}
+} 
+
+/********************************************************************************
+ Function : CHANGE Active_Window_Volume_In
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnActiveWindow
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : This function will change the volume level for the active window
+ Notes    : N/A
+ ********************************************************************************/
+Change Active_Window_Volume_In{CynapWindows.setWindowsVolumeIn(gnActiveWindow, Active_Window_Volume_In);}
+/********************************************************************************
+ Function : PUSH Active_Window_Mute_On
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnActiveWindow
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : This function will set the active window mute on
+ Notes    : N/A
+ ********************************************************************************/
+Push Active_Window_Mute_On{CynapWindows.setWindowsMuteOn(gnActiveWindow);}
+/********************************************************************************
+ Function : PUSH Active_Window_Mute_Off
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnActiveWindow
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : This function will set the active window mute off
+ Notes    : N/A
+ ********************************************************************************/
+Push Active_Window_Mute_Off{CynapWindows.setWindowsMuteOff(gnActiveWindow);}
+/********************************************************************************
+ Function : PUSH Active_Window_Mute_Toggle
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : Win[x].Mute
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : This function will toggle the active window mute on or off
+ Notes    : N/A
+ ********************************************************************************/
+Push Active_Window_Mute_Toggle
+{
+	If(	Win[gnActiveWindow].Mute = 1){CynapWindows.setWindowsMuteOff(gnActiveWindow);}
+	Else{CynapWindows.setWindowsMuteOn(gnActiveWindow);}
+} 
+ 
+/********************************************************************************
+ Function : PUSH Active_Window_Volume_Button
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : Active_Window_Volume_Subpage
+ Globals  : N/A
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : This function will toggle the Volume Window on or off
+ Notes    : N/A
+ ********************************************************************************/
+Push Active_Window_Volume_Button {Active_Window_Volume_Subpage = !Active_Window_Volume_Subpage;}
+/********************************************************************************
+ Function : PUSH Active_Window_DualScreen_Mode_On
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnActiveWindow
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : This function will set the active window DualScreen_Mode on
+ Notes    : N/A
+ ********************************************************************************/
+Push Active_Window_DualScreen_Mode_On {CynapWindows.setWindowsDualScreenmodeOn(gnActiveWindow);}
+/********************************************************************************
+ Function : PUSH Active_Window_DualScreen_Mode_Off
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnActiveWindow
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : This function will set the active window DualScreen_Mode off
+ Notes    : N/A
+ ********************************************************************************/
+Push Active_Window_DualScreen_Mode_Off {CynapWindows.setWindowsDualScreenmodeOff(gnActiveWindow);}
+/********************************************************************************
+ Function : PUSH Active_Window_DualScreen_Mode_Toggle
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnActiveWindow
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : This function will toggle the active window DualScreen_Mode on or off
+ Notes    : N/A
+ ********************************************************************************/
+Push Active_Window_DualScreen_Mode_Toggle {CynapWindows.setWindowsDualScreenmodeToggle(gnActiveWindow);}
+
+
+/*******************************************************************************************
+  Edit Bar controls
+*******************************************************************************************/
+/********************************************************************************
+ Function : PUSH Home
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function is like a home button on a browser
+ Notes    : N/A
+ ********************************************************************************/
+Push Home{CynapWindows.setBrowserControlCommand(gnActiveWindow, "\x15");}
+/********************************************************************************
+ Function : PUSH Bookmarks
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function gets a list of bookmarks
+ Notes    : N/A
+ ********************************************************************************/
+Push Bookmarks
+{
+	If((gnUserDataStatus = 3) && (gnUserDataBookmarks = TRUE))
+	{
+		CynapWindows.setShowUserData();
+	}
+
+	Bookmark_Scroll_Level_Out = 0;
+	Update_Bookmarks(0);
+ 
+	UpdateBookmarkName = Win[gnActiveWindow].BrowserTitle;
+	UpdateBookmarkURL = Win[gnActiveWindow].BrowserURL;
+}
+/********************************************************************************
+ Function : PUSH Power
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will toggle Power On or Off the visualizer
+ Notes    : N/A
+ ********************************************************************************/
+Push Power{CynapWindows.setVisualizerControlCommand(gnActiveWindow, "\x0E");}
+/********************************************************************************
+ Function : PUSH Light
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will toggle the Light on or off
+ Notes    : N/A
+ ********************************************************************************/
+Push Light{CynapWindows.setVisualizerControlCommand(gnActiveWindow, "\x11");}
+/********************************************************************************
+ Function : PUSH Zoom_Out
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : Win[x].Type
+			gnActiveWindow
+ Calls    : SendData
+			SendData
+ Return   : N/A
+ Purpose  : This function will activate the Zoom Out feature while in many different
+			types of windows.
+ Notes    : N/A
+ ********************************************************************************/
+Push Zoom_Out
+{
+	CSWITCH(Win[gnActiveWindow].Type)
+	{
+    	CASE(01):{CynapWindows.setVisualizerControlExtraCommand(gnActiveWindow, "\x00\x00\x08"); BREAK;} 
+	   	CASE(03):{CynapWindows.setBrowserControlCommand(gnActiveWindow, "\x04"); BREAK;}
+	   	CASE(09):{CynapWindows.setPDFControlCommand(gnActiveWindow, "\x02"); BREAK;}
+	   	CASE(10):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x02"); BREAK;}
+	   	CASE(11):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x02"); BREAK;}
+	   	CASE(12):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x02"); BREAK;}
+    	CASE(16):{CynapWindows.setVisualizerControlExtraCommand(gnActiveWindow, "\x00\x00\x08"); BREAK;} 
+	   	CASE(18):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x04"); BREAK;}
+	   	CASE(19):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x04"); BREAK;}
+	   	CASE(20):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x04"); BREAK;}
+	   	CASE(21):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x04"); BREAK;}
+	   	CASE(22):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x04"); BREAK;}
+	   	CASE(23):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x04"); BREAK;}
+	   	CASE(30):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x04"); BREAK;}
+		DEFAULT:
+		{
+			#IF_DEFINED DEBUG_PROGRAM
+            	print("   [PUSH Zoom_Out] Win[gnActiveWindow].Type is incorrect: %u \n", Win[gnActiveWindow].Type );
+			#ENDIF
+			BREAK;
+		}
+	}	
+}
+/********************************************************************************
+ Function : RELEASE Zoom_Out
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : Win[x].Type
+			gnActiveWindow
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will deactivate the Zoom Out feature while in the visualizer window
+ Notes    : N/A
+ ********************************************************************************/
+Release Zoom_Out
+{
+	CSWITCH(Win[gnActiveWindow].Type)
+	{
+    	CASE(01):{CynapWindows.setVisualizerControlExtraCommand(gnActiveWindow, "\x00\x00\x00"); BREAK;}  
+    	CASE(16):{CynapWindows.setVisualizerControlExtraCommand(gnActiveWindow, "\x00\x00\x00"); BREAK;}  
+		DEFAULT:
+		{
+			#IF_DEFINED DEBUG_PROGRAM
+               	print("   [RELEASE Zoom_Out] Win[gnActiveWindow].Type is incorrect: %u \n", Win[gnActiveWindow].Type );
+			#ENDIF
+			BREAK;
+		}
+	}
+}
+/********************************************************************************
+ Function : PUSH Zoom_In
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : Win[x].Type
+			gnActiveWindow
+ Calls    : SendData
+			SendData
+ Return   : N/A
+ Purpose  : This function will activate the Zoom In feature while in many different types of windows
+ Notes    : N/A
+ ********************************************************************************/
+Push Zoom_In
+{
+	CSWITCH(Win[gnActiveWindow].Type)
+	{     	
+		CASE(01):{CynapWindows.setVisualizerControlExtraCommand(gnActiveWindow, "\x01\x00\x08"); BREAK;}  
+	   	CASE(03):{CynapWindows.setBrowserControlCommand(gnActiveWindow, "\x03"); BREAK;} 
+	   	CASE(09):{CynapWindows.setPDFControlCommand(gnActiveWindow, "\x01"); BREAK;}
+	   	CASE(10):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x01"); BREAK;}
+	   	CASE(11):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x01"); BREAK;}
+	   	CASE(12):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x01"); BREAK;}
+		CASE(16):{CynapWindows.setVisualizerControlExtraCommand(gnActiveWindow, "\x01\x00\x08"); BREAK;}  
+	   	CASE(18):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x03"); BREAK;}
+	   	CASE(19):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x03"); BREAK;}
+	   	CASE(20):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x03"); BREAK;}
+	   	CASE(21):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x03"); BREAK;}
+	   	CASE(22):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x03"); BREAK;}
+	   	CASE(23):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x03"); BREAK;}	
+	   	CASE(30):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x03"); BREAK;}	
+		DEFAULT:
+		{
+			#IF_DEFINED DEBUG_PROGRAM
+            	print("   [PUSH Zoom_In] Win[gnActiveWindow].Type is incorrect: %u \n", Win[gnActiveWindow].Type );
+			#ENDIF
+			BREAK;
+		}
+	}
+}
+/********************************************************************************
+ Function : RELEASE Zoom_In
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : Win[x].Type
+			gnActiveWindow
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will deactivate the Zoom In feature while in the visualizer window
+ Notes    : N/A
+ ********************************************************************************/
+Release Zoom_In
+{
+	CSWITCH(Win[gnActiveWindow].Type)
+	{	
+    	CASE(01):{CynapWindows.setVisualizerControlExtraCommand(gnActiveWindow, "\x01\x00\x00"); BREAK;} 
+    	CASE(16):{CynapWindows.setVisualizerControlExtraCommand(gnActiveWindow, "\x01\x00\x00"); BREAK;} 
+		DEFAULT:
+		{
+			#IF_DEFINED DEBUG_PROGRAM
+            	print("   [RELEASE Zoom_In] Win[gnActiveWindow].Type is incorrect: %u \n", Win[gnActiveWindow].Type );
+			#ENDIF
+			BREAK;
+		}
+	}
+}
+
+/********************************************************************************
+ Function : PUSH Back
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnActiveWindow
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will activate the Back feature while in a browser window
+ Notes    : N/A
+ ********************************************************************************/
+Push Back
+{
+	CSWITCH(Win[gnActiveWindow].Type)
+	{ 
+	   	CASE(03):{CynapWindows.setBrowserControlCommand(gnActiveWindow, "\x09"); BREAK;} 
+	   	CASE(18):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x09"); BREAK;}
+	   	CASE(19):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x09"); BREAK;}
+	   	CASE(20):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x09"); BREAK;}
+	   	CASE(21):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x09"); BREAK;}
+	   	CASE(22):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x09"); BREAK;}
+	   	CASE(23):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x09"); BREAK;}		
+	   	CASE(30):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x09"); BREAK;}		
+	}
+}
+/********************************************************************************
+ Function : PUSH Forward
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnActiveWindow
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will activate the Forward feature while in a browser window
+ Notes    : N/A
+ ********************************************************************************/
+Push Forward 
+{
+	CSWITCH(Win[gnActiveWindow].Type)
+	{ 
+	   	CASE(03):{CynapWindows.setBrowserControlCommand(gnActiveWindow, "\x0A"); BREAK;}
+	   	CASE(18):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x0A"); BREAK;}
+	   	CASE(19):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x0A"); BREAK;}
+	   	CASE(20):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x0A"); BREAK;}
+	   	CASE(21):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x0A"); BREAK;}
+	   	CASE(22):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x0A"); BREAK;}
+	   	CASE(23):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x0A"); BREAK;}	
+	   	CASE(30):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x0A"); BREAK;}	
+	}
+}
+
+/********************************************************************************
+ Function : PUSH ArrowDown
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnActiveWindow
+			Win[x].Type
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will activate the Arrow Down feature while in many different types of windows
+ Notes    : N/A
+ ********************************************************************************/
+Push ArrowDown
+{
+	CSWITCH(Win[gnActiveWindow].Type)
+	{ 
+	   	CASE(03):{CynapWindows.setBrowserControlCommand(gnActiveWindow, "\x05"); BREAK;}
+	   	CASE(09):{CynapWindows.setPDFControlCommand(gnActiveWindow, "\x03"); BREAK;}
+	   	CASE(10):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x03"); BREAK;}
+	   	CASE(11):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x03"); BREAK;}
+	   	CASE(12):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x03"); BREAK;}
+		DEFAULT:{BREAK;}
+	}
+} 
+/********************************************************************************
+ Function : PUSH ArrowUp
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnActiveWindow
+			Win[x].Type
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will activate the Arrow Up feature while in many different types of windows
+ Notes    : N/A
+ ********************************************************************************/
+Push ArrowUp
+{
+	CSWITCH(Win[gnActiveWindow].Type)
+	{
+	   	CASE(03):{CynapWindows.setBrowserControlCommand(gnActiveWindow, "\x06"); BREAK;}
+	   	CASE(09):{CynapWindows.setPDFControlCommand(gnActiveWindow, "\x04"); BREAK;}
+	   	CASE(10):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x04"); BREAK;}
+	   	CASE(11):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x04"); BREAK;}
+	   	CASE(12):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x04"); BREAK;}	
+		DEFAULT:{BREAK;}
+	}
+}
+/********************************************************************************
+ Function : PUSH ArrowLeft
+---------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnActiveWindow
+			Win[x].Type
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will activate the Arrow Left feature while in many different types of windows
+ Notes    : N/A
+ ********************************************************************************/
+Push ArrowLeft
+{
+	CSWITCH(Win[gnActiveWindow].Type)
+	{
+	   	CASE(03):{CynapWindows.setBrowserControlCommand(gnActiveWindow, "\x08"); BREAK;}
+	   	CASE(09):{CynapWindows.setPDFControlCommand(gnActiveWindow, "\x06"); BREAK;}
+	   	CASE(10):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x06"); BREAK;}
+	   	CASE(11):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x06"); BREAK;}
+	   	CASE(12):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x06"); BREAK;}
+		DEFAULT:{BREAK;}
+	}
+}
+/********************************************************************************
+  Function : PUSH ArrowRight
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnActiveWindow
+			Win[x].Type
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will activate the Arrow Right feature while in many different types of windows
+ Notes    : N/A
+ ********************************************************************************/
+Push ArrowRight
+{
+	CSWITCH(Win[gnActiveWindow].Type)
+	{
+	   	CASE(03):{CynapWindows.setBrowserControlCommand(gnActiveWindow, "\x07"); BREAK;}
+	   	CASE(09):{CynapWindows.setPDFControlCommand(gnActiveWindow, "\x05"); BREAK;}
+	   	CASE(10):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x05"); BREAK;}
+	   	CASE(11):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x05"); BREAK;}
+	   	CASE(12):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x05"); BREAK;}
+		DEFAULT:{BREAK;}
+	}
+}
+/********************************************************************************
+ Function : PUSH Previous
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnActiveWindow
+			Win[x].Type
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will activate the Previous feature while in many different types of windows
+ Notes    : N/A
+ ********************************************************************************/
+Push Previous
+{
+	CSWITCH(Win[gnActiveWindow].Type)
+	{
+	   	CASE(08):{CynapWindows.setImageControlCommand(gnActiveWindow, "\x03"); BREAK;}
+	   	CASE(10):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x0A"); BREAK;}
+	   	CASE(11):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x0A"); BREAK;}
+	   	CASE(12):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x0A"); BREAK;}
+		DEFAULT:{BREAK;}
+	}
+}
+/********************************************************************************
+ Function : PUSH Rewind
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnActiveWindow
+			Win[x].Type
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will activate the rewind feature while in the video window
+ Notes    : N/A
+ ********************************************************************************/
+Push Rewind
+{
+	CSWITCH(Win[gnActiveWindow].Type)
+	{
+	   	CASE(06):{CynapWindows.setVideoControlCommand(gnActiveWindow, "\x04"); BREAK;}
+	   	CASE(14):{CynapWindows.setAudioControlCommand(gnActiveWindow, "\x04"); BREAK;}
+	}
+}
+/********************************************************************************
+ Function : PUSH StepBack
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnActiveWindow
+			Win[x].Type
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will activate the StepBack feature while in many different types of windows
+ Notes    : 
+ ********************************************************************************/
+Push StepBack
+{
+	CSWITCH(Win[gnActiveWindow].Type)
+	{
+	   	CASE(08):{CynapWindows.setImageControlCommand(gnActiveWindow, "\x01"); BREAK;}
+	   	CASE(09):{CynapWindows.setPDFControlCommand(gnActiveWindow, "\x08"); BREAK;}
+	   	CASE(10):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x08"); BREAK;}
+	   	CASE(11):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x08"); BREAK;}
+	   	CASE(12):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x0A"); BREAK;}
+		DEFAULT:{BREAK;}
+	}
+}
+/********************************************************************************
+ Function : PUSH Stop
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnActiveWindow
+			Win[x].Type
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will activate the Stop feature while in the video window
+ Notes    : N/A
+********************************************************************************/
+Push Stop
+{
+	CSWITCH(Win[gnActiveWindow].Type)
+	{
+	   	CASE(06):{CynapWindows.setVideoControlCommand(gnActiveWindow, "\x02"); BREAK;}
+	   	CASE(14):{CynapWindows.setAudioControlCommand(gnActiveWindow, "\x02"); BREAK;}
+	}
+}
+/********************************************************************************
+ Function : PUSH Play
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnActiveWindow
+			Win[x].Type
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will activate the Back feature while in the Video window
+ Notes    : N/A
+ ********************************************************************************/
+Push Play
+{
+	CSWITCH(Win[gnActiveWindow].Type)
+	{
+	   	CASE(06):{CynapWindows.setVideoControlCommand(gnActiveWindow, "\x00"); BREAK;}
+	   	CASE(14):{CynapWindows.setAudioControlCommand(gnActiveWindow, "\x00"); BREAK;}
+	}
+}
+/********************************************************************************
+ Function : PUSH Pause
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnActiveWindow
+			Win[x].Type
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will activate the Pause feature while in the video window
+ Notes    : N/A
+ ********************************************************************************/
+Push Pause
+{
+	CSWITCH(Win[gnActiveWindow].Type)
+	{
+	   	CASE(06):{CynapWindows.setVideoControlCommand(gnActiveWindow, "\x01"); BREAK;}
+	   	CASE(14):{CynapWindows.setAudioControlCommand(gnActiveWindow, "\x01"); BREAK;}
+	}
+}
+/********************************************************************************
+ Function : PUSH StepForward
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnActiveWindow
+			Win[x].Type
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will activate the StepForward feature while in many different types of windows
+ Notes    : N/A
+ ********************************************************************************/
+Push StepForward
+{
+	CSWITCH(Win[gnActiveWindow].Type)
+	{
+	   	CASE(08):{CynapWindows.setImageControlCommand(gnActiveWindow, "\x02"); BREAK;}
+	   	CASE(09):{CynapWindows.setPDFControlCommand(gnActiveWindow, "\x07"); BREAK;}
+	   	CASE(10):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x07"); BREAK;}
+	   	CASE(11):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x07"); BREAK;}
+	   	CASE(12):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x09"); BREAK;}
+		DEFAULT:{BREAK;}
+	}
+}
+/********************************************************************************
+ Function : PUSH FastForward
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnActiveWindow
+			Win[x].Type
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will activate the FastForward feature while in the video window
+ Notes    : N/A
+ ********************************************************************************/
+Push FastForward
+{
+	CSWITCH(Win[gnActiveWindow].Type)
+	{
+	   	CASE(06):{CynapWindows.setVideoControlCommand(gnActiveWindow, "\x03"); BREAK;}
+	   	CASE(14):{CynapWindows.setAudioControlCommand(gnActiveWindow, "\x03"); BREAK;}
+	}
+}
+
+/********************************************************************************
+ Function : PUSH Next
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnActiveWindow
+			Win[x].Type
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will activate the Next feature while in many different types of windows
+ Notes    : N/A
+ ********************************************************************************/
+Push Next
+{
+	CSWITCH(Win[gnActiveWindow].Type)
+	{
+	   	CASE(08):{CynapWindows.setImageControlCommand(gnActiveWindow, "\x04"); BREAK;}
+	   	CASE(10):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x09"); BREAK;}
+	   	CASE(11):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x09"); BREAK;}
+	   	CASE(12):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x09"); BREAK;}	
+		DEFAULT:{BREAK;}
+	}
+}
+/********************************************************************************
+ Function : PUSH Reload
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnActiveWindow
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will activate the Reload feature while in the browser window
+ Notes    : N/A
+ ********************************************************************************/
+Push Reload
+{
+	CSWITCH(Win[gnActiveWindow].Type)
+	{ 
+	   	CASE(03):{CynapWindows.setBrowserControlCommand(gnActiveWindow, "\x01"); BREAK;}
+	   	CASE(18):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x01"); BREAK;}
+	   	CASE(19):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x01"); BREAK;}
+	   	CASE(20):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x01"); BREAK;}
+	   	CASE(21):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x01"); BREAK;}
+	   	CASE(22):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x01"); BREAK;}
+	   	CASE(23):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x01"); BREAK;}
+	   	CASE(30):{CynapWindows.setOffice365ControlCommand(gnActiveWindow, "\x01"); BREAK;}
+	}
+} 
+/********************************************************************************
+ Function : PUSH WWW
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : Browser_Keyboard_Show
+ Globals  : N/A
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : This function will activate or hide the keyboard for the browser
+ Notes    : N/A
+ ********************************************************************************/
+Push WWW
+{
+	If(Browser_Keyboard_Show)
+	{
+        Browser_Keyboard_Show = FALSE;
+	}
+	Else
+	{
+    	Browser_Keyboard_Show = TRUE;
+	}
+}
+
+/********************************************************************************
+ Function : PUSH BrowserURLEnter
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : Browser_Keyboard_Show
+ Globals  : gnActiveWindow
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will send the keyboard text entered to the cynap and hide the keyboard
+ Notes    : N/A
+ ********************************************************************************/
+Push BrowserURLEnter
+{
+	CynapWindows.setBrowserControlExtraCommand(gnActiveWindow, BrowserURL);
+	Browser_Keyboard_Show = FALSE;
+}
+/********************************************************************************
+ Function : PUSH BrowserKeyboardClose
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : Browser_Keyboard_Show
+ Globals  : N/A
+ Calls    : N/A
+ Return   : N/A
+ Purpose  : This function will hide the keyboard for the browser
+ Notes    : N/A
+ ********************************************************************************/
+Push BrowserKeyboardClose {Browser_Keyboard_Show = FALSE;}
+
+
+/********************************************************************************
+ Function : PUSH Focus_Near
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will activate the Focus_Near feature while in the visualizer window
+ Notes    : N/A
+ ********************************************************************************/
+Push Focus_Near{CynapWindows.setVisualizerControlExtraCommand(gnActiveWindow, "\x03\x00\x08"); } 
+/********************************************************************************
+ Function : RELEASE Focus_Near
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will deactivate the Focus_Near feature while in the visualizer window
+ Notes    : N/A 
+ ********************************************************************************/
+Release Focus_Near{CynapWindows.setVisualizerControlExtraCommand(gnActiveWindow, "\x03\x00\x00"); } 
+/********************************************************************************
+ Function : PUSH Focus_Far
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will activate the Focus_Far feature while in the visualizer window
+ Notes    : N/A
+ ********************************************************************************/
+Push Focus_Far{CynapWindows.setVisualizerControlExtraCommand(gnActiveWindow, "\x02\x00\x08"); } 
+/********************************************************************************
+ Function : RELEASE Focus_Far
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will deactivate the Focus_Near feature while in the visualizer window
+ Notes    : N/A 
+ ********************************************************************************/
+Release Focus_Far{CynapWindows.setVisualizerControlExtraCommand(gnActiveWindow, "\x02\x00\x00"); } 
+/********************************************************************************
+ Function : PUSH Auto_Focus
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnAutoFocusStatus
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will toggle the Auto Focus feature while in the visualizer window
+ Notes    : N/A 
+ ********************************************************************************/
+Push Auto_Focus{CynapWindows.setVisualizerControlCommand(gnActiveWindow, "\x0A"); } 
+/********************************************************************************
+ Function : PUSH Freeze
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnFreezeStatus
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will toggle the Freeze feature while in the visualizer window
+ Notes    : N/A 
+ ********************************************************************************/
+Push PictureFreeze{CynapWindows.setVisualizerControlCommand(gnActiveWindow, "\x0B"); } 
+/********************************************************************************
+ Function : PUSH Preset_Recall
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will recall the saved preset while in the visualizer window
+ Notes    : N/A
+ ********************************************************************************/
+Push Preset_Recall{CynapWindows.setVisualizerControlCommand(gnActiveWindow, "\x09"); } 
+/********************************************************************************
+ Function : PUSH Preset_Save
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will save the current settings in a preset while in the visualizer window
+ Notes    : N/A
+ ********************************************************************************/
+Push Preset_Save{CynapWindows.setVisualizerControlCommand(gnActiveWindow, "\x08"); } 
+/********************************************************************************
+ Function : PUSH Capture
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will activate the Capture Area Shift function
+ Notes    : N/A
+ ********************************************************************************/
+Push Capture{CynapWindows.setVisualizerControlCommand(gnActiveWindow, "\x14"); }  
+/********************************************************************************
+ Function : PUSH FullPage
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnActiveWindow
+			Win[x].Type
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will activate the Full Page view
+ Notes    : N/A
+ ********************************************************************************/
+Push FullPage
+{
+	CSWITCH(Win[gnActiveWindow].Type)
+	{
+	   	CASE(03):{CynapWindows.setBrowserControlCommand(gnActiveWindow, "\x10"); BREAK;}
+	   	CASE(09):{CynapWindows.setPDFControlCommand(gnActiveWindow, "\x0C"); BREAK;}
+	   	CASE(10):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x0B"); BREAK;}
+	   	CASE(11):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x0B"); BREAK;}
+	   	CASE(12):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x0B"); BREAK;}
+		DEFAULT:{BREAK;}
+	}
+}
+/********************************************************************************
+ Function : PUSH FullWidth
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnActiveWindow
+			Win[x].Type
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will activate the Full Width view
+ Notes    : N/A
+ ********************************************************************************/
+Push FullWidth
+{
+	CSWITCH(Win[gnActiveWindow].Type)
+	{
+	   	CASE(03):{CynapWindows.setBrowserControlCommand(gnActiveWindow, "\x0F"); BREAK;}
+	   	CASE(09):{CynapWindows.setPDFControlCommand(gnActiveWindow, "\x0B"); BREAK;}
+	   	CASE(10):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x0C"); BREAK;}
+	   	CASE(11):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x0C"); BREAK;}
+	   	CASE(12):{CynapWindows.setOfficeControlCommand(gnActiveWindow, "\x0C"); BREAK;}
+		DEFAULT:{BREAK;}
+	}
+}
+/********************************************************************************
+ Function : PUSH FullHeight
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnActiveWindow
+			Win[x].Type
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will activate the Full Height view
+ Notes    : N/A
+ ********************************************************************************/
+Push FullHeight
+{
+	CSWITCH(Win[gnActiveWindow].Type)
+	{
+	   	CASE(03):{CynapWindows.setBrowserControlCommand(gnActiveWindow, "\x0E"); BREAK;}
+	   	CASE(09):{CynapWindows.setPDFControlCommand(gnActiveWindow, "\x0A"); BREAK;}
+		DEFAULT:{BREAK;}
+	}
+}
+
+/********************************************************************************
+ Function : PUSH Loop
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : gnActiveWindow
+			Win[x].Type
+ Calls    : SendData
+ Return   : N/A
+ Purpose  : This function will activate the Loop feature while in the Video window
+ Notes    : N/A
+ ********************************************************************************/
+Push Loop
+{
+	CSWITCH(Win[gnActiveWindow].Type)
+	{
+	   	CASE(06):{CynapWindows.setVideoControlCommand(gnActiveWindow, "\x09"); BREAK;}
+	   	CASE(14):{CynapWindows.setAudioControlCommand(gnActiveWindow, "\x09"); BREAK;}
+	}
+}
+/********************************************************************************
+ Function : PUSH Bookmark_Add
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : 			
+ Calls    : 
+ Return   : N/A
+ Purpose  : This adds a new bookmark to the list
+ Notes    : 
+ ********************************************************************************/      
+Push Bookmark_Add
+{	
+	#if_defined DEBUG_PROGRAM
+		print("[Bookmark_Add]AddBookmarkName= %s\n AddBookmarkURL= %s\n", AddBookmarkName, AddBookmarkURL);
+	#ENDIF
+
+	CynapWindows.AddBookmark(AddBookmarkName, AddBookmarkURL);
+}
+/********************************************************************************
+ Function : PUSH Bookmark_Delete
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : 			
+ Calls    : 
+ Return   : N/A
+ Purpose  : This function deletes a bookmark from the list
+ Notes    : 
+ ********************************************************************************/      
+Push Bookmark_Delete
+{	
+	Integer nPress, nAdjustedIndex;
+
+	nPress = GetLastModifiedArrayIndex();
+	nAdjustedIndex = (gnBookmarkList[nPress]);
+
+	#if_defined DEBUG_PROGRAM
+		print("[Bookmark_Delete]nPress= %u\n ", nPress);	
+		print("[Bookmark_Delete]nAdjustedIndex= %u\n ", nAdjustedIndex);	
+	#ENDIF
+
+	CynapWindows.DeleteBookmark(nAdjustedIndex);    
+}
+/********************************************************************************
+ Function : PUSH Bookmark_Pressed
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : 			
+ Calls    : 
+ Return   : N/A
+ Purpose  : This function opens a bookmark
+ Notes    : 
+ ********************************************************************************/      
+Push Bookmark_Pressed
+{	
+	Integer nPress, nAdjustedIndex;
+	String sBookmark[ MAX_DATA_SIZE ];
+
+	nPress = GetLastModifiedArrayIndex();
+	nAdjustedIndex = (gnBookmarkList[nPress]);
+
+	#if_defined DEBUG_PROGRAM
+		print("[Bookmark_Pressed]nPress= %u\n ", nPress);	
+		print("[Bookmark_Pressed]nAdjustedIndex= %u\n ", nAdjustedIndex);	
+	#ENDIF
+
+	CynapWindows.BookmarksRefresh(nAdjustedIndex);
+		sBookmark = CynapWindows.BookmarksURL;
+    
+	#if_defined DEBUG_PROGRAM
+		print("[Bookmark_Pressed]sBookmark= %s\n ", sBookmark);	
+	#ENDIF
+	
+	CynapWindows.setBrowserControlExtraCommand(gnActiveWindow, sBookmark);
+}
+
+/*******************************************************************************************
+  Main()
+*******************************************************************************************/
+
+/********************************************************************************
+ Function : Main
+ --------------------------------------------------------------------------------
+ Arguments: N/A
+ Output   : N/A
+ Globals  : N/A
+ Calls    : Init()
+			Init() within simpl#
+ Return   : N/A
+ Purpose  : This function will only run once and initialze this module, and its simpl# counterpart. 
+ Notes    : N/A
+ ********************************************************************************/
+Function Main()
+{
+    WaitForInitializationComplete();
+	CynapWindows.Init(ID);
+	Init();
+}
+
